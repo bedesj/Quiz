@@ -37,11 +37,22 @@
     }
   };
 
+  // 창의력 수준: 미취학(easy) · 1~2학년(normal) · 3~4학년(hard) · 5~6학년(top). 값은 그 수준에서 나오는 가장 어려운 문제의 단계.
   var CREATIVE_DIFF_TIERS = {
     easy: 2,
     normal: 5,
-    hard: 9
+    hard: 8,
+    top: 10
   };
+  // 3~4학년·5~6학년 수준에서는 너무 쉬운 문제를 빼려고 가장 쉬운 단계도 정해 둔다
+  var CREATIVE_DIFF_MIN = { easy: 1, normal: 1, hard: 4, top: 7 };
+  var CREATIVE_DIFF_LABELS = { easy: "미취학", normal: "1~2학년", hard: "3~4학년", top: "5~6학년" };
+  function creativeDiffForStage(stageId) {
+    if (/^p/.test(stageId)) return "easy";
+    if (/^g[12]/.test(stageId)) return "normal";
+    if (/^g[34]/.test(stageId)) return "hard";
+    return "top";
+  }
 
   var state = {
     version: 2,
@@ -299,6 +310,7 @@
       var first = firstStageIndexWithUnits(lk);
       if (first === -1 || stageIndexOf(stageId) < first) state.subjectStage[lk] = "";
     });
+    state.creativeDiff = creativeDiffForStage(stageId);
     state.presetId = "custom";
     syncTiersFromUnits();
   }
@@ -2745,6 +2757,16 @@
     return h + "</select>";
   }
 
+  // 과목 줄에 넣는 학년 펼침 목록 (그 과목의 단원이 있는 학기만). 학년을 따라가지 않는 과목은 빈 글.
+  function buildStageSelectHtml(subjKey) {
+    if ((window.GRADED_SUBJECTS || []).indexOf(subjKey) === -1 || !window.stageUnits) return "";
+    var stages = (window.GRADE_STAGES || []).filter(function (g) { return window.stageUnits(subjKey, g.id).length > 0; });
+    if (stages.length < 2) return "";
+    var cur = getSubjectStage(subjKey);
+    return '<select class="level-dropdown subj-stage-select" data-subj="' + subjKey + '" aria-label="이 과목의 학년 고르기">' +
+      stages.map(function (g) { return '<option value="' + g.id + '"' + (g.id === cur ? " selected" : "") + ">" + g.short + "</option>"; }).join("") + "</select>";
+  }
+
   function renderLevelScreen() {
     syncTiersFromUnits();
 
@@ -2848,7 +2870,8 @@
               state.subjectUnitIdx[gk] = Math.max(0, Math.round(pKeys.indexOf(chosen) * (gLen - 1) / 2));
             }
           });
-          state.creativeDiff = d.creativeDiff;
+          // 창의력 수준은 1학년 1학기일 때만 출발 위치를 따라가고, 다른 학년에서는 학년에 맞춘 수준을 그대로 둔다
+          if ((state.gradeStage || "g1a") === "g1a") state.creativeDiff = d.creativeDiff;
           syncTiersFromUnits();
           saveState();
           window.SoundFX.click();
@@ -2896,6 +2919,7 @@
       rHtml +=
         '<div class="subj-unit-row" style="' + (isDisabledHanja ? "opacity:0.5" : "") + '">' +
         '<div class="subj-badge-pill ' + sc.key + '">' + sc.badge + "</div>" +
+        buildStageSelectHtml(sc.key) +
         buildUnitSelectHtml(sc.key, uList, curIdx, isDisabledHanja) +
         '<button type="button" class="unit-arrow-btn" data-subj="' + sc.key + '" data-dir="-1"' + (curIdx <= 0 || isDisabledHanja ? " disabled" : "") + ">◀</button>" +
         '<div class="unit-info-box">' +
@@ -2929,9 +2953,10 @@
 
     // 창의력 행 (4032.png 최하단 행)
     var cDiffs = [
-      { id: "easy", label: "쉬움" },
-      { id: "normal", label: "보통" },
-      { id: "hard", label: "어려움" }
+      { id: "easy", label: CREATIVE_DIFF_LABELS.easy },
+      { id: "normal", label: CREATIVE_DIFF_LABELS.normal },
+      { id: "hard", label: CREATIVE_DIFF_LABELS.hard },
+      { id: "top", label: CREATIVE_DIFF_LABELS.top }
     ];
     var cBtnsHtml = "";
     for (var cd = 0; cd < cDiffs.length; cd++) {
@@ -2950,12 +2975,27 @@
       "</select>" +
       '<div class="unit-info-box">' +
       '<div class="unit-info-title">수수께끼·규칙 찾기</div>' +
-      '<div class="unit-info-desc">단원이 없어서 수준만 골라요 · 동적 시각 퍼즐 포함</div>' +
+      '<div class="unit-info-desc">단원이 없어서 수준만 골라요 · 학년을 고르면 함께 맞춰져요</div>' +
       "</div>" +
       cBtnsHtml +
       "</div>";
 
     rowsWrap.innerHTML = rHtml;
+    // 바인딩: 과목별 학년 고르기 (그 과목만 고른 학기의 첫 단원으로 옮긴다)
+    var stageSels = rowsWrap.querySelectorAll(".subj-stage-select");
+    for (var ss = 0; ss < stageSels.length; ss++) {
+      stageSels[ss].addEventListener("change", function () {
+        var sk3 = this.getAttribute("data-subj");
+        if (window.stageUnits(sk3, this.value).length === 0) return;
+        state.subjectStage[sk3] = this.value;
+        state.subjectUnitIdx[sk3] = 0;
+        state.presetId = "custom";
+        syncTiersFromUnits();
+        saveState();
+        window.SoundFX.click();
+        renderLevelScreen();
+      });
+    }
 
     // 바인딩: ◀ ▶ 단원 이동
     var arrowBtns = rowsWrap.querySelectorAll(".unit-arrow-btn");
@@ -3208,7 +3248,7 @@
 
     // 상단 창의력 요약 배지
     var creLogs = state.attempts.filter(function (a) { return a.subject === "creative"; });
-    var creDiffLabel = state.creativeDiff === "hard" ? "어려움" : (state.creativeDiff === "normal" ? "보통" : "쉬움");
+    var creDiffLabel = CREATIVE_DIFF_LABELS[state.creativeDiff] || CREATIVE_DIFF_LABELS.easy;
     var creAccText = creLogs.length > 0
       ? ("정답률 " + Math.round((creLogs.filter(function (a) { return a.correct; }).length / creLogs.length) * 100) + "%")
       : "기록 없음";
@@ -4015,6 +4055,7 @@
       if (qSubj !== subj) return false;
       if (specificUnitId) return q.unit === specificUnitId;
       if (!isQuestionInCurrentStage(q, subj)) return false;
+      if (subj === "creative" && (q.tier || 1) < (CREATIVE_DIFF_MIN[state.creativeDiff] || 1)) return false;
       return (q.tier || 1) <= cappedTier;
     });
 
@@ -4315,7 +4356,87 @@
     }
   }
 
+
+  // ---------------- 분수 표시와 자료 그래프 ----------------
+  function escapeHtmlText(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  // 수학 문제의 "3/4", "2와 1/5" 를 위아래로 쌓은 분수 모양으로 바꾼 HTML 을 돌려준다. 분수가 없으면 null.
+  function formatMathHtml(text) {
+    var t = String(text == null ? "" : text);
+    if (!/\d\/\d/.test(t)) return null;
+    var F = function (n, d) { return '<span class="frac"><span>' + n + "</span><span>" + d + "</span></span>"; };
+    var h = escapeHtmlText(t);
+    h = h.replace(/(^|[^\d\/])(\d+)[과와] (\d+)\/(\d+)(?![\d\/])/g, function (m, pre, w, n, d) { return pre + '<span class="mixed-num">' + w + "</span>" + F(n, d); });
+    h = h.replace(/(^|[^\d\/])(\d+)\/(\d+)(?![\d\/])/g, function (m, pre, n, d) { return pre + F(n, d); });
+    return h;
+  }
+  function isMathQuiz(quizObj) {
+    return !!quizObj && (quizObj.subject || quizObj.category) === "math";
+  }
+  // "[제목] 가 3명, 나 5명" 처럼 글로 적힌 자료를 단원에 맞는 그래프로 그린다. 그릴 수 없으면 null.
+  var AUTO_CHART_UNITS = { mg5: "bar", mh5: "line", mk5: "band" };
+  function buildAutoChart(quizObj, questionText) {
+    if (!isMathQuiz(quizObj) || quizObj.svg) return null;
+    var kind = AUTO_CHART_UNITS[quizObj.unit];
+    if (!kind) return null;
+    var lines = String(questionText || "").split("\n");
+    var m = lines[0].match(/^\[(.+?)\] (.+)$/);
+    if (!m || lines.length < 2) return null;
+    var rows = m[2].split(", ").map(function (x) { var r = x.match(/^(.*?) ?(\d+)(\D*)$/); return r ? { name: r[1], v: Number(r[2]), u: r[3] } : null; });
+    if (rows.length < 2 || rows.some(function (r) { return !r || !r.name; })) return null;
+    var W = 340, H = 168, COL = ["#4da3ff", "#ff9248", "#46c37b", "#b47cff", "#f06595", "#20a39e"];
+    var esc = escapeHtmlText, unit = rows[0].u.trim(), n = rows.length, maxV = Math.max.apply(null, rows.map(function (r) { return r.v; }));
+    var s = '<svg viewBox="0 0 ' + W + " " + H + '" xmlns="http://www.w3.org/2000/svg" role="img" font-family="inherit" font-weight="700">' +
+      '<rect x="0" y="0" width="' + W + '" height="' + H + '" rx="10" fill="#ffffff" stroke="#232538" stroke-width="2"/>' +
+      '<text x="' + (W / 2) + '" y="17" text-anchor="middle" font-size="12" fill="#232538">' + esc(m[1]) + (kind !== "band" && unit ? " (" + esc(unit) + ")" : "") + "</text>";
+    if (kind === "band") {
+      var total = rows.reduce(function (a, r) { return a + r.v; }, 0), x = 16, bw = W - 32;
+      if (total !== 100) return null;
+      rows.forEach(function (r, i) {
+        var w = bw * r.v / 100;
+        s += '<rect x="' + x.toFixed(1) + '" y="34" width="' + w.toFixed(1) + '" height="44" fill="' + COL[i % COL.length] + '" stroke="#232538" stroke-width="1.5"/>' +
+          '<text x="' + (x + w / 2).toFixed(1) + '" y="61" text-anchor="middle" font-size="12" fill="#ffffff">' + r.v + "%</text>";
+        x += w;
+      });
+      for (var t = 0; t <= 10; t++) { var tx = 16 + bw * t / 10; s += '<line x1="' + tx.toFixed(1) + '" y1="78" x2="' + tx.toFixed(1) + '" y2="' + (t % 5 === 0 ? 85 : 82) + '" stroke="#232538" stroke-width="1"/>'; if (t % 5 === 0) s += '<text x="' + tx.toFixed(1) + '" y="96" text-anchor="middle" font-size="9" fill="#555b70">' + (t * 10) + "</text>"; }
+      rows.forEach(function (r, i) {
+        var lx = 22 + (i % 2) * (W / 2 - 10), ly = 116 + Math.floor(i / 2) * 20;
+        s += '<rect x="' + lx + '" y="' + (ly - 10) + '" width="12" height="12" rx="2" fill="' + COL[i % COL.length] + '" stroke="#232538" stroke-width="1"/>' +
+          '<text x="' + (lx + 18) + '" y="' + ly + '" font-size="12" fill="#232538">' + esc(r.name) + "</text>";
+      });
+    } else {
+      var x0 = 30, y0 = 132, top = 30, ph = y0 - top, pw = W - x0 - 14, step = pw / n;
+      // 눈금 네 칸이 딱 떨어지는 수가 되도록 한 칸의 크기를 고른다
+      var STEPS = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500], base = 0, stepV = 1, minV = Math.min.apply(null, rows.map(function (r) { return r.v; }));
+      for (var si = 0; si < STEPS.length; si++) {
+        stepV = STEPS[si];
+        base = kind === "line" ? Math.max(0, Math.floor(minV / stepV) * stepV - stepV) : 0;
+        if (base + stepV * 4 >= maxV) break;
+      }
+      var niceMax = base + stepV * 4;
+      for (var g = 0; g <= 4; g++) { var gy = y0 - ph * g / 4, gv = base + (niceMax - base) * g / 4; s += '<line x1="' + x0 + '" y1="' + gy.toFixed(1) + '" x2="' + (W - 14) + '" y2="' + gy.toFixed(1) + '" stroke="' + (g === 0 ? "#232538" : "#dfe3ee") + '" stroke-width="' + (g === 0 ? 1.5 : 1) + '"/>' + '<text x="' + (x0 - 4) + '" y="' + (gy + 3).toFixed(1) + '" text-anchor="end" font-size="9" fill="#555b70">' + (Math.round(gv * 10) / 10) + "</text>"; }
+      s += '<line x1="' + x0 + '" y1="' + top + '" x2="' + x0 + '" y2="' + y0 + '" stroke="#232538" stroke-width="1.5"/>';
+      var pts = [];
+      rows.forEach(function (r, i) {
+        var cx = x0 + step * (i + 0.5), yy = y0 - ph * (r.v - base) / (niceMax - base);
+        if (kind === "bar") { var bwid = Math.min(34, step * 0.56); s += '<rect x="' + (cx - bwid / 2).toFixed(1) + '" y="' + yy.toFixed(1) + '" width="' + bwid.toFixed(1) + '" height="' + (y0 - yy).toFixed(1) + '" fill="' + COL[i % COL.length] + '" stroke="#232538" stroke-width="1.5"/>'; }
+        pts.push(cx.toFixed(1) + "," + yy.toFixed(1));
+        s += '<text x="' + cx.toFixed(1) + '" y="' + (yy - 5).toFixed(1) + '" text-anchor="middle" font-size="11" fill="#232538">' + r.v + "</text>" +
+          '<text x="' + cx.toFixed(1) + '" y="' + (y0 + 14) + '" text-anchor="middle" font-size="' + (r.name.length > 5 ? 9 : 11) + '" fill="#232538">' + esc(r.name) + "</text>";
+      });
+      if (kind === "line") {
+        s += '<polyline points="' + pts.join(" ") + '" fill="none" stroke="#ff7043" stroke-width="2.5" stroke-linejoin="round"/>';
+        pts.forEach(function (pt) { var c = pt.split(","); s += '<circle cx="' + c[0] + '" cy="' + c[1] + '" r="3.6" fill="#ffffff" stroke="#ff7043" stroke-width="2.2"/>'; });
+        if (base > 0) s += '<path d="M' + (x0 - 5) + " " + (y0 - 6) + " q3 -3 5 0 t5 0" + '" fill="none" stroke="#232538" stroke-width="1.2"/>';
+      }
+    }
+    return { svg: s + "</svg>", text: lines.slice(1).join("\n") };
+  }
+
   function renderQuestionAndChoices(catMeta, questionText, choices, disabledIndices, feedbackMsg, quizObj) {
+    var autoChart = buildAutoChart(quizObj, questionText);
+    if (autoChart) questionText = autoChart.text;
     var catTag = document.getElementById("question-category-tag");
     var tierSuffix = (quizObj && quizObj.tier) ? (" · T" + quizObj.tier) : "";
     catTag.textContent = catMeta.emoji + " " + catMeta.name + tierSuffix;
@@ -4347,8 +4468,9 @@
 
     var svgStage = document.getElementById("question-svg-stage");
     var qBoxEl = document.querySelector("#battle-quiz-panel .question-box");
-    if (quizObj && quizObj.svg) {
-      svgStage.innerHTML = quizObj.svg;
+    svgStage.classList.toggle("auto-chart", !!autoChart);
+    if (quizObj && (quizObj.svg || autoChart)) {
+      svgStage.innerHTML = autoChart ? autoChart.svg : quizObj.svg;
       svgStage.classList.remove("hidden");
       if (qBoxEl) qBoxEl.classList.add("has-svg");
     } else {
@@ -4358,7 +4480,8 @@
     }
 
     var qTextEl = document.getElementById("question-text");
-    qTextEl.textContent = questionText;
+    var qMathHtml = isMathQuiz(quizObj) ? formatMathHtml(questionText) : null;
+    if (qMathHtml) qTextEl.innerHTML = qMathHtml; else qTextEl.textContent = questionText;
     // 첫 줄이 그림만 있는 문제(세어 보기 등)는 그 줄을 크게 보여 준다
     var qFirstLine = String(questionText || "").split("\n")[0];
     qTextEl.classList.toggle("has-picture-line", String(questionText || "").indexOf("\n") > 0 && !/[0-9A-Za-z가-힣ㄱ-ㅎㅏ-ㅣ]/.test(qFirstLine));
@@ -4412,7 +4535,8 @@
 
     var btns = grid.querySelectorAll(".choice-btn");
     for (var b = 0; b < btns.length; b++) {
-      btns[b].querySelector(".choice-label").textContent = choices[b];
+      var cMathHtml = isMathQuiz(quizObj) ? formatMathHtml(choices[b]) : null;
+      if (cMathHtml) btns[b].querySelector(".choice-label").innerHTML = cMathHtml; else btns[b].querySelector(".choice-label").textContent = choices[b];
       // 글자 없이 그림만 있는 보기는 크게 보여 준다
       btns[b].classList.toggle("picture-choice", !/[0-9A-Za-z가-힣ㄱ-ㅎㅏ-ㅣ]/.test(String(choices[b])));
       btns[b].addEventListener("click", function () {

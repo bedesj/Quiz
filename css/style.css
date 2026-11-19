@@ -4110,6 +4110,15 @@ img.offline-shiny-tint:not(.is-wild-silhouette) {
   padding: 8px 10px;
   min-width: 0;
 }
+/* 과목별 학년 고르기: 과목 줄 안의 작은 펼침 목록 (가로·세로 화면 모두 보인다) */
+.level-dropdown.subj-stage-select { display: block; flex: 0 0 auto; width: 78px; padding: 6px 4px 6px 8px; font-size: 15px; font-weight: 900; }
+/* 분수를 위아래로 쌓아 보여 준다 */
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; line-height: 1.05; font-size: 0.82em; margin: 0 0.12em; }
+.frac > span:first-child { border-bottom: 0.11em solid currentColor; padding: 0 0.22em 0.04em; }
+.frac > span:last-child { padding: 0.04em 0.22em 0; }
+.mixed-num { margin-right: 0.02em; }
+/* 글로 적힌 자료를 그래프로 그려 보여 줄 때는 그림 자리를 더 크게 쓴다 */
+.question-svg-stage.auto-chart svg { max-width: 460px; max-height: clamp(110px, 40vh, 178px); }
 @media (orientation: portrait) {
   .grade-stage-row, .grade-stage-current, .preset-cards-row { display: none; }
   .grade-stage-select, .preset-select { display: block; width: 100%; }
@@ -4120,6 +4129,9 @@ img.offline-shiny-tint:not(.is-wild-silhouette) {
   #screen-level .subj-unit-row .unit-info-box,
   #screen-level .subj-unit-row .creative-level-btn { display: none; }
   #screen-level .subj-unit-row .unit-select { display: block; flex: 1 1 150px; }
+  /* 학년 목록이 함께 있는 줄은 단원 목록을 더 좁혀 한 줄에 넣는다 */
+  #screen-level .subj-unit-row .subj-stage-select { width: 66px; padding-left: 6px; }
+  #screen-level .subj-unit-row .subj-stage-select + .unit-select { flex: 1 1 84px; }
   /* '🔍 확인 문제' 는 자리가 좁아 '🔍 확인' 으로 줄여 보여 준다 */
   #screen-level .btn-subj-check { font-size: 0; }
   #screen-level .btn-subj-check::before { content: "🔍 확인"; font-size: 13px; }
