@@ -2605,12 +2605,14 @@
     for (var i = 0; i < keys.length; i++) {
       var sk = keys[i];
       if (sk === "hanja" && !state.hanjaEnabled) continue;
-      var logs = state.attempts.filter(function (a) { return a.subject === sk; }).slice(-20);
+      var uList = (window.SUBJECT_UNITS && window.SUBJECT_UNITS[sk]) || [];
+      var curIdx = state.subjectUnitIdx[sk] || 0;
+      var curUnitId = uList[curIdx] ? uList[curIdx].id : "";
+      // 지금 단원에서 푼 문제만 센다 (단원을 옮긴 뒤 예전 단원 기록으로 같은 제안이 되풀이되지 않게)
+      var logs = state.attempts.filter(function (a) { return a.subject === sk && a.unit === curUnitId; }).slice(-20);
       if (logs.length >= 8) {
         var right = logs.filter(function (a) { return a.correct; }).length;
         var ratio = right / logs.length;
-        var uList = (window.SUBJECT_UNITS && window.SUBJECT_UNITS[sk]) || [];
-        var curIdx = state.subjectUnitIdx[sk] || 0;
         if (ratio < 0.6 && curIdx > 0) {
           return {
             subject: sk,
