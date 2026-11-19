@@ -274,51 +274,102 @@ html, body {
 }
 
 .floating-mon.mon-sky-left {
-  width: clamp(58px, 10vmin, 96px);
-  height: clamp(58px, 10vmin, 96px);
+  width: clamp(116px, 20vmin, 192px);
+  height: clamp(116px, 20vmin, 192px);
   left: clamp(5%, 11vw, 15%);
   top: clamp(14%, 18vh, 22%);
   animation: animeFloatSky 3.8s ease-in-out infinite;
 }
 
 .floating-mon.mon-grass-left {
-  width: clamp(68px, 12vmin, 114px);
-  height: clamp(68px, 12vmin, 114px);
+  width: clamp(136px, 24vmin, 228px);
+  height: clamp(136px, 24vmin, 228px);
   left: clamp(3%, 6vw, 10%);
   bottom: clamp(18%, 24vh, 30%);
   animation: animeBounceGrass 3.1s ease-in-out infinite;
 }
 
 .floating-mon.mon-grass-inner-left {
-  width: clamp(52px, 8.8vmin, 84px);
-  height: clamp(52px, 8.8vmin, 84px);
+  width: clamp(104px, 17.6vmin, 168px);
+  height: clamp(104px, 17.6vmin, 168px);
   left: clamp(14%, 19vw, 23%);
   bottom: clamp(9%, 13vh, 17%);
   animation: animeBounceGrass 3.6s ease-in-out 0.6s infinite;
 }
 
 .floating-mon.mon-sky-right {
-  width: clamp(56px, 9.6vmin, 90px);
-  height: clamp(56px, 9.6vmin, 90px);
+  width: clamp(112px, 19.2vmin, 180px);
+  height: clamp(112px, 19.2vmin, 180px);
   right: clamp(7%, 14vw, 18%);
   top: clamp(13%, 17vh, 21%);
   animation: animeFloatSky 4.2s ease-in-out 0.4s infinite;
 }
 
 .floating-mon.mon-grass-right {
-  width: clamp(66px, 11.4vmin, 108px);
-  height: clamp(66px, 11.4vmin, 108px);
+  width: clamp(132px, 22.8vmin, 216px);
+  height: clamp(132px, 22.8vmin, 216px);
   right: clamp(4%, 9vw, 13%);
   bottom: clamp(22%, 27vh, 34%);
   animation: animeBounceGrass 3.4s ease-in-out 0.9s infinite;
 }
 
 .floating-mon.mon-grass-inner-right {
-  width: clamp(52px, 8.8vmin, 82px);
-  height: clamp(52px, 8.8vmin, 82px);
+  width: clamp(104px, 17.6vmin, 164px);
+  height: clamp(104px, 17.6vmin, 164px);
   right: clamp(15%, 21vw, 25%);
   bottom: clamp(10%, 14vh, 18%);
   animation: animeBounceGrass 3.9s ease-in-out 0.2s infinite;
+}
+
+/* 태블릿·세로 화면처럼 폭이 좁은 화면에서는 메뉴 버튼과 겹치지 않게 1.5배까지만 키운다 */
+@media (max-aspect-ratio: 3/2) {
+  .floating-mon.mon-sky-left {
+    width: clamp(87px, 15vmin, 144px);
+    height: clamp(87px, 15vmin, 144px);
+  }
+  .floating-mon.mon-grass-left {
+    width: clamp(102px, 18vmin, 171px);
+    height: clamp(102px, 18vmin, 171px);
+  }
+  .floating-mon.mon-grass-inner-left {
+    width: clamp(78px, 13.2vmin, 126px);
+    height: clamp(78px, 13.2vmin, 126px);
+  }
+  .floating-mon.mon-sky-right {
+    width: clamp(84px, 14.4vmin, 135px);
+    height: clamp(84px, 14.4vmin, 135px);
+  }
+  .floating-mon.mon-grass-right {
+    width: clamp(99px, 17.1vmin, 162px);
+    height: clamp(99px, 17.1vmin, 162px);
+  }
+  .floating-mon.mon-grass-inner-right {
+    width: clamp(78px, 13.2vmin, 123px);
+    height: clamp(78px, 13.2vmin, 123px);
+  }
+}
+
+@media (max-aspect-ratio: 3/2) {
+  .floating-mon.mon-grass-inner-left,
+  .floating-mon.mon-grass-inner-right {
+    bottom: clamp(4%, 7vh, 10%);
+  }
+}
+
+/* 세로 화면에서는 풀밭의 바깥쪽 두 마리가 메뉴 버튼 뒤로 숨지 않게 버튼 아래로 내린다 */
+@media (orientation: portrait) {
+  .floating-mon.mon-grass-left,
+  .floating-mon.mon-grass-right {
+    bottom: 2%;
+  }
+  .floating-mon.mon-grass-inner-left {
+    left: 34%;
+    bottom: 10%;
+  }
+  .floating-mon.mon-grass-inner-right {
+    right: 34%;
+    bottom: 10%;
+  }
 }
 
 /* 아직 잡지 못한 야생 포켓몬은 배경에 어우러지는 신비로운 실루엣으로 표시 (참조 4030.png 스타일) */
@@ -2000,18 +2051,18 @@ html, body {
   }
   .floating-mon.mon-sky-left,
   .floating-mon.mon-sky-right {
-    width: 48px;
-    height: 48px;
+    width: 96px;
+    height: 96px;
   }
   .floating-mon.mon-grass-left,
   .floating-mon.mon-grass-right {
-    width: 56px;
-    height: 56px;
+    width: 112px;
+    height: 112px;
   }
   .floating-mon.mon-grass-inner-left,
   .floating-mon.mon-grass-inner-right {
-    width: 42px;
-    height: 42px;
+    width: 84px;
+    height: 84px;
   }
 
   /* 폰 가로 지역 선택 & 배틀 2열 배치 */
