@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>포켓몬 퀴즈 대모험! (전국도감 1025)</title>
+  <meta name="description" content="7세·초등 1학년 맞춤형 5과목 조작 교구 퀴즈와 전국도감 1,025마리 포켓몬 수집·진화를 함께 즐기는 학습 모험 앱" />
+  <meta name="theme-color" content="#ffd43b" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="포켓몬퀴즈" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Jua&family=Black+Han+Sans&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- 상단 공통 바 (모험 지역·필드·배틀·도감에서만 노출, 시작/학습수준/성취도/한자따라쓰기에서는 자동 숨김) -->
+    <header id="main-top-bar" class="top-bar hidden">
+      <div class="top-left">
+        <button type="button" id="btn-top-home" class="nav-btn">◀ 처음으로</button>
+        <button type="button" id="btn-top-region" class="nav-btn">🗺️ 지역 바꾸기</button>
+      </div>
+      <div class="top-center">
+        <span id="top-center-label">🔴 전국도감 0 / 1025</span>
+      </div>
+      <div class="top-right">
+        <button type="button" id="btn-top-routine" class="nav-btn btn-routine-nav" title="오늘의 25분 학습 루틴">📅 오늘의 루틴</button>
+        <button type="button" id="btn-level-settings" class="nav-btn btn-level-nav" title="학습 수준 정하기">⚙️ 학습 수준</button>
+        <button type="button" id="btn-voice-mode" class="nav-btn btn-voice-nav" title="음성 읽어주기 모드 전환">👨‍👩‍👧 부모동반</button>
+        <button type="button" id="btn-shiny-settings" class="nav-btn btn-shiny-rate" title="색이 다른 포켓몬 확률 설정">✨ 이로치 확률</button>
+        <button type="button" id="btn-top-pokedex" class="nav-btn btn-pokedex">📖 도감</button>
+        <button type="button" id="btn-sound-toggle" class="nav-btn btn-sound">🔊 소리 켜짐</button>
+      </div>
+    </header>
+
+    <!-- 1. 시작 화면 (오픈형 포켓몬 애니메이션 풍경 + 떠다니는 포켓몬·실루엣 + 중앙 버튼 스택) -->
+    <section id="screen-title" class="screen active">
+      <!-- 좌측 상단: 오늘의 루틴 & 스마트폰 앱 설치(PWA) 바로가기 알약 -->
+      <div class="title-left-controls">
+        <button type="button" id="btn-open-routine-title" class="corner-pill-btn routine" title="일일 3과목 학습 루틴 열기">📅 오늘의 루틴 0/14</button>
+        <button type="button" id="btn-install-pwa" class="corner-pill-btn pwa-install" title="스마트폰·태블릿 홈 화면에 앱으로 설치하기">📲 앱 설치</button>
+      </div>
+
+      <!-- 우측 상단 깔끔한 플로팅 버튼 -->
+      <div class="title-corner-controls">
+        <button type="button" id="btn-title-voice" class="corner-pill-btn" title="음성 모드 전환">👨‍👩‍👧 부모동반</button>
+        <button type="button" id="btn-title-shiny" class="corner-pill-btn shiny" title="색이 다른 포켓몬 확률">✨ 이로치</button>
+        <button type="button" id="btn-title-sound" class="corner-icon-btn" aria-label="소리 켜기/끄기" title="소리 켜기/끄기">🔊</button>
+      </div>
+
+      <!-- 배경 하늘과 초원에 자유롭게 배치된 포켓몬 친구들(잡은 포켓몬은 컬러, 미발견은 신비로운 실루엣) -->
+      <div class="title-floating-layer" aria-hidden="true">
+        <img id="title-mascot-25" class="floating-mon mon-sky-left" alt="" referrerpolicy="no-referrer" decoding="async" />
+        <img id="title-mascot-7" class="floating-mon mon-grass-left" alt="" referrerpolicy="no-referrer" decoding="async" />
+        <img id="title-mascot-1" class="floating-mon mon-grass-inner-left is-wild-silhouette" alt="" referrerpolicy="no-referrer" decoding="async" />
+        <img id="title-mascot-4" class="floating-mon mon-sky-right is-wild-silhouette" alt="" referrerpolicy="no-referrer" decoding="async" />
+        <img id="title-mascot-133" class="floating-mon mon-grass-right is-wild-silhouette" alt="" referrerpolicy="no-referrer" decoding="async" />
+        <img id="title-mascot-39" class="floating-mon mon-grass-inner-right is-wild-silhouette" alt="" referrerpolicy="no-referrer" decoding="async" />
+      </div>
+
+      <!-- 중앙 애니메이션 로고 & 버튼 스택 -->
+      <div class="title-center-stack">
+        <div class="anime-logo-group">
+          <div class="anime-logo-main" data-text="포켓몬">포켓몬</div>
+          <div class="anime-logo-sub" data-text="퀴즈 대모험">퀴즈 대모험</div>
+        </div>
+
+        <div id="title-tagline-pill" class="title-tagline-pill">문제를 풀고 포켓몬 친구를 모으자!</div>
+
+        <button type="button" id="btn-start-adventure" class="hero-start-btn">▶ 모험 시작</button>
+
+        <div class="title-menu-rows">
+          <div class="title-menu-row">
+            <button type="button" id="btn-open-pokedex-title" class="menu-pill-btn">
+              <span>📖 도감</span>
+              <span id="title-dex-count" class="coral-highlight">0/1025</span>
+            </button>
+            <button type="button" id="btn-open-stamp-modal" class="menu-pill-btn">
+              <span>🗓️ 출석 도장</span>
+              <span id="stamp-total-count" class="coral-highlight">1개</span>
+            </button>
+          </div>
+          <div class="title-menu-row">
+            <button type="button" id="btn-open-level-title" class="menu-pill-btn">
+              <span>⚙️ 학습 수준</span>
+              <span id="title-level-status" class="coral-highlight">정하기</span>
+            </button>
+            <button type="button" id="btn-open-progress-title" class="menu-pill-btn">
+              <span>📊 성취도</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 학습 수준 정하기 전용 화면 (참조 4032.png 구조) -->
+    <section id="screen-level" class="screen subpage-screen">
+      <header class="subpage-header">
+        <button type="button" id="btn-level-home" class="subpage-nav-btn">◀ 처음으로</button>
+        <div class="subpage-title-wrap">
+          <span class="subpage-title">⚙️ 학습 수준 정하기</span>
+          <span class="guardian-chip">보호자용</span>
+        </div>
+        <button type="button" id="btn-level-to-progress" class="subpage-nav-btn">📊 성취도</button>
+      </header>
+
+      <div class="subpage-scroll">
+        <div id="level-auto-advice" class="advice-banner hidden"></div>
+
+        <!-- 단계 일괄 선택 -->
+        <div class="level-panel-box">
+          <div class="panel-heading-row">
+            <span class="panel-heading-main">단계 선택</span>
+            <span class="panel-heading-sub">세 단계 중 하나를 고르면 전 과목의 출발 단원이 한꺼번에 정해져요</span>
+          </div>
+          <div id="preset-cards-row" class="preset-cards-row"></div>
+        </div>
+
+        <!-- 과목별로 정하기 -->
+        <div class="level-panel-box">
+          <div class="panel-heading-row">
+            <span class="panel-heading-main">과목별로 정하기</span>
+            <span class="panel-heading-sub">🔍 수준 확인 문제(추천)를 풀거나, ◀ ▶ 로 직접 고르세요</span>
+          </div>
+          <div id="subject-unit-rows" class="subject-unit-rows"></div>
+        </div>
+
+        <!-- 보조 보호자 도구 & 동적 SVG 시각 교구·조작형 입력기 설정 -->
+        <div class="level-panel-box utility-panel-box">
+          <div class="utility-bar-row">
+            <span id="review-status-summary" class="utility-status-text">📚 복습 대기 0문항</span>
+            <div class="utility-btn-group">
+              <button type="button" id="btn-spawn-review-now" class="mini-tool-btn review">🌈 지금 복습 볼 열기</button>
+              <button type="button" id="btn-preview-svg-tool" class="mini-tool-btn">🎨 시각 교구 미리보기</button>
+              <button type="button" id="btn-toggle-interactive" class="mini-tool-btn">🧩 조작 입력기 켜짐</button>
+              <button type="button" id="btn-toggle-hanja" class="mini-tool-btn">🖌️ 한자 켜짐</button>
+              <button type="button" id="btn-toggle-flee" class="mini-tool-btn">🛡️ 무벌칙 해설 모드</button>
+              <button type="button" id="btn-export-json" class="mini-tool-btn">💾 기록 백업</button>
+            </div>
+          </div>
+          <div id="svg-preview-box" class="svg-preview-box hidden"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. 성취도 전용 화면 (참조 4033.png 4열 컬러 대시보드 구조) -->
+    <section id="screen-progress" class="screen subpage-screen">
+      <header class="subpage-header">
+        <button type="button" id="btn-progress-home" class="subpage-nav-btn">◀ 처음으로</button>
+        <div class="subpage-title-wrap">
+          <span class="subpage-title">📊 성취도</span>
+        </div>
+        <button type="button" id="btn-progress-to-level" class="subpage-nav-btn">⚙️ 학습 수준</button>
+      </header>
+
+      <div class="progress-legend-bar">
+        <span>✅ 풀어서 마침 · 🔍 확인 문제로 통과 · 👤 보호자가 통과 처리 · ▶ 배우는 중 · ○ 앞으로 배울 단원 (단원을 누르면 열어서 풀 수 있어요)</span>
+        <span id="progress-creative-summary" class="creative-progress-pill">💡 창의력: 보통 · 기록 없음</span>
+      </div>
+
+      <div id="progress-columns-grid" class="progress-columns-grid"></div>
+    </section>
+
+    <!-- 4. 지역 고르기 화면 -->
+    <section id="screen-region" class="screen">
+      <h2 class="section-heading">어느 지역으로 모험을 떠날까요?</h2>
+      <div id="region-grid" class="region-grid"></div>
+    </section>
+
+    <!-- 5. 필드 화면 -->
+    <section id="screen-field" class="screen">
+      <div id="field-hint-bar" class="field-hint">👆 가고 싶은 곳이나 몬스터볼을 터치·클릭해 걸어가 보세요!</div>
+      <canvas id="field-canvas"></canvas>
+    </section>
+
+    <!-- 6. 배틀 화면 (포켓몬 애니메이션 스타디움 배경 + 3대 조작 입력기 + 한자 화선지 도장) -->
+    <section id="screen-battle" class="screen">
+      <div class="battle-container">
+        <div id="battle-hud" class="battle-hud">
+          <div id="battle-hearts" class="hearts-box" aria-label="원샷 보너스 하트">❤️❤️❤️</div>
+          <div class="battle-hud-right">
+            <span id="battle-routine-pill" class="routine-pill hidden">📅 루틴 0/14</span>
+            <span id="battle-boost-pill" class="boost-pill hidden">🍀 복습 이로치 부스트!</span>
+            <span id="battle-shiny-pill" class="shiny-pill hidden">✨ 색이 다른!</span>
+            <div id="battle-stage-pill" class="battle-stage-pill">❓ 실루엣 퀴즈</div>
+          </div>
+        </div>
+
+        <div id="battle-main" class="battle-main">
+          <!-- 포켓몬 실루엣 / 실제 모습 무대 -->
+          <div id="pokemon-stage-card" class="pokemon-stage-card">
+            <div id="shiny-alert-banner" class="shiny-alert-banner hidden">✨ 반짝반짝! 색이 다른 포켓몬이에요!</div>
+            <div class="pokemon-art-wrap">
+              <div id="battle-img-spinner" class="pokemon-loading-spinner hidden" aria-hidden="true"></div>
+              <img id="battle-pokemon-img" alt="야생 포켓몬" class="is-silhouette" referrerpolicy="no-referrer" decoding="async" />
+              <div id="throw-ball" class="throw-ball"></div>
+            </div>
+            <div class="pokemon-info-bar">
+              <span id="battle-pokemon-name" class="pokemon-name-label">???</span>
+              <div id="battle-pokemon-types" class="region-type-row"></div>
+            </div>
+          </div>
+
+          <!-- 퀴즈 질문 + 동적 SVG 교구 + (4지선다 보기 OR 숫자패드·한글조합·한자화선지) -->
+          <div id="battle-quiz-panel" class="quiz-panel">
+            <div class="question-box">
+              <div class="question-meta-row">
+                <span id="question-category-tag" class="question-category-tag">🔍 포켓몬 이름 맞히기</span>
+                <span id="question-synergy-tag" class="question-synergy-tag hidden">⚡ 상성 보너스!</span>
+                <button type="button" id="btn-speak-question" class="speak-pill-btn hidden">🔊 발음 듣기</button>
+                <button type="button" id="btn-trace-exit-battle" class="speak-pill-btn trace-escape-btn hidden">🏃 나가기</button>
+              </div>
+              <div id="question-svg-stage" class="question-svg-stage hidden" aria-hidden="true"></div>
+              <div id="question-text" class="question-text">검은 그림자의 포켓몬은 누구일까?</div>
+              <div id="battle-feedback" class="battle-feedback"></div>
+            </div>
+            <div id="choices-grid" class="choices-grid"></div>
+            <div id="interactive-input-zone" class="interactive-input-zone hidden"></div>
+          </div>
+
+          <!-- 포획 성공 / 도망 결과 박스 -->
+          <div id="battle-result-box" class="battle-result-box hidden">
+            <h3 id="result-headline" class="result-headline">신난다! 포켓몬을 잡았다!</h3>
+            <p id="result-subtext" class="game-subtitle">도감에 등록되었어요!</p>
+            <div id="result-reward-pills" class="result-reward-pills"></div>
+            <div class="result-action-row">
+              <button type="button" id="btn-result-open-3d" class="nav-btn btn-3d-toggle">🧊 3D로 돌려보기</button>
+              <button type="button" id="btn-battle-finish" class="big-btn gold-btn">필드로 돌아가기 ▶</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. 도감 화면 -->
+    <section id="screen-pokedex" class="screen">
+      <div class="pokedex-toolbar">
+        <div class="filter-tabs">
+          <button type="button" id="filter-btn-all" class="filter-btn active">전체 (1025)</button>
+          <button type="button" id="filter-btn-caught" class="filter-btn">잡은 포켓몬 (0)</button>
+          <button type="button" id="filter-btn-evolvable" class="filter-btn">🧬 진화 가능 (0)</button>
+          <button type="button" id="filter-btn-shiny" class="filter-btn">✨ 색이 다른 (0)</button>
+          <select id="pokedex-gen-select" class="gen-select" aria-label="세대 선택"></select>
+        </div>
+        <div class="pokedex-right-stats">
+          <span id="pokedex-items-pill" class="evo-bag-pill">🍬 사탕 6 · 💎 진화의돌 1</span>
+          <span id="pokedex-progress-text" class="pokedex-progress-text">수집률: 0 / 1025마리</span>
+        </div>
+      </div>
+      <div id="pokedex-scroll" class="pokedex-scroll">
+        <div id="pokedex-empty" class="dex-empty hidden">
+          <div id="pokedex-empty-msg">아직 잡은 포켓몬이 없어요! 필드로 가서 몬스터볼을 만나 볼까요?</div>
+          <button type="button" id="btn-empty-go-region" class="big-btn">🗺️ 탐험 떠나기</button>
+        </div>
+        <div id="pokedex-grid" class="pokedex-grid"></div>
+      </div>
+    </section>
+
+    <!-- 모달 1: 출석 도장 팝업 (참조 4031.png 원형 10칸 도장판) -->
+    <div id="stamp-modal" class="modal-backdrop hidden">
+      <div class="modal-card stamp-modal-card">
+        <h3 class="stamp-modal-title">🗓️ 출석 도장</h3>
+        <p class="stamp-modal-desc">
+          하루에 한 번, 게임을 열면 도장을 하나 받아요.<br />
+          지금까지 모은 도장: <strong id="stamp-modal-count" class="coral-highlight">1개</strong>
+          <span id="stamp-today-badge" class="stamp-today-chip hidden">🎉 오늘 도장 쾅!</span>
+        </p>
+        <div id="stamp-grid" class="stamp-circle-row"></div>
+        <button type="button" id="btn-close-stamp-modal" class="stamp-close-btn">닫기</button>
+      </div>
+    </div>
+
+    <!-- 모달 2: 과목별 수준 확인 문제 팝업 (🔍 확인 문제) -->
+    <div id="unit-check-modal" class="modal-backdrop hidden">
+      <div class="modal-card check-modal-card">
+        <div id="check-modal-progress" class="diag-progress">🔍 수준 확인 문제 (1 / 4)</div>
+        <h3 id="check-modal-title" class="result-headline">국어 출발 단원 확인</h3>
+        <div id="check-modal-svg" class="question-svg-stage hidden"></div>
+        <div id="check-modal-question" class="diag-question"></div>
+        <div id="check-modal-choices" class="diag-choices"></div>
+        <button type="button" id="btn-close-check-modal" class="nav-btn">닫기</button>
+      </div>
+    </div>
+
+    <!-- 모달 3: 한자 아는 글자 선택 팝업 (8급 50자) -->
+    <div id="hanja-known-modal" class="modal-backdrop hidden">
+      <div class="modal-card hanja-modal-card">
+        <h3 class="result-headline">漢 이미 아는 한자 고르기 (8급 50자)</h3>
+        <p class="game-subtitle">아이가 이미 읽을 줄 아는 글자를 눌러 두면 새 문제 대신 복습 위주로 가볍게 나와요.</p>
+        <div id="hanja-known-grid" class="hanja-char-grid"></div>
+        <button type="button" id="btn-close-hanja-modal" class="stamp-close-btn">확인</button>
+      </div>
+    </div>
+
+    <!-- 모달 4: 성취도 단원 클릭 액션 팝업 -->
+    <div id="unit-action-modal" class="modal-backdrop hidden">
+      <div class="modal-card">
+        <h3 id="unit-action-title" class="result-headline">단원 선택</h3>
+        <p id="unit-action-desc" class="game-subtitle"></p>
+        <div class="rate-option-list">
+          <button type="button" id="btn-unit-set-active" class="rate-option-btn selected">▶ 이 단원을 '배우는 중'으로 바꾸기</button>
+          <button type="button" id="btn-unit-play-now" class="rate-option-btn">⚔️ 이 단원 문제로 바로 포켓몬 만나기</button>
+          <button type="button" id="btn-unit-mark-passed" class="rate-option-btn">👤 보호자가 통과(완료) 처리하기</button>
+        </div>
+        <button type="button" id="btn-close-unit-action" class="nav-btn">닫기</button>
+      </div>
+    </div>
+
+    <!-- 모달 5: 도감 상세 모달 (HOME 3D + 360도 뷰어 + 한글 도감 설명 + 공식 진화 시스템) -->
+    <div id="dex-modal" class="modal-backdrop hidden">
+      <div class="modal-card dex-detail-card">
+        <div id="modal-visual-stage" class="modal-visual-stage">
+          <img id="modal-poke-img" alt="포켓몬 상세 그림" referrerpolicy="no-referrer" decoding="async" />
+          <div id="modal-3d-wrap" class="modal-3d-wrap hidden">
+            <div id="modal-3d-host" class="modal-3d-host"></div>
+            <div id="modal-3d-status" class="modal-3d-status">손가락이나 마우스로 돌려 보세요!</div>
+          </div>
+        </div>
+        <h3 id="modal-poke-title" class="result-headline">#0001 이상해씨</h3>
+        <div id="modal-poke-types" class="region-type-row"></div>
+        <p id="modal-poke-region" class="game-subtitle"></p>
+
+        <!-- 한글 도감 설명 & 음성 읽기 -->
+        <div class="dex-flavor-box">
+          <p id="modal-poke-flavor" class="dex-flavor-text"></p>
+          <button type="button" id="btn-modal-speak-flavor" class="speak-pill-btn">🔊 도감 설명 듣기</button>
+        </div>
+
+        <!-- 포켓몬 진화 계통 & 진화시키기 패널 -->
+        <div id="modal-evo-section" class="dex-evo-section">
+          <div class="dex-evo-header">
+            <span>🧬 진화 계통</span>
+            <span id="modal-evo-bag" class="dex-evo-bag">🍬 0 · 💎 0</span>
+          </div>
+          <div id="modal-evo-chain" class="dex-evo-chain"></div>
+          <div id="modal-evo-actions" class="dex-evo-actions"></div>
+          <div id="modal-evo-feedback" class="dex-evo-feedback"></div>
+        </div>
+
+        <div class="modal-btn-row">
+          <button type="button" id="btn-modal-toggle-3d" class="nav-btn btn-3d-toggle">🧊 3D로 돌려보기</button>
+          <button type="button" id="btn-modal-toggle-shiny" class="nav-btn btn-shiny-rate hidden">✨ 색이 다른 모습 보기</button>
+        </div>
+        <button type="button" id="btn-close-modal" class="big-btn secondary">닫기</button>
+      </div>
+    </div>
+
+    <!-- 모달 6: 색이 다른 포켓몬 확률 설정 모달 -->
+    <div id="shiny-modal" class="modal-backdrop hidden">
+      <div class="modal-card">
+        <h3 class="result-headline">✨ 색이 다른 포켓몬 확률</h3>
+        <p class="game-subtitle">배틀에서 반짝이는 색이 다른(이로치) 포켓몬이 나올 확률을 고를 수 있어요.</p>
+        <div id="shiny-boost-banner" class="boost-info-box hidden"></div>
+        <div id="shiny-rate-options" class="rate-option-list"></div>
+        <button type="button" id="btn-close-shiny-modal" class="stamp-close-btn">확인</button>
+      </div>
+    </div>
+
+    <!-- 모달 7: 오늘의 25~30분 일일 학습 루틴 모달 (국·수 매일 + 영·한 격일 자동 큐잉) -->
+    <div id="routine-modal" class="modal-backdrop hidden">
+      <div class="modal-card routine-modal-card">
+        <h3 class="stamp-modal-title">📅 오늘의 학습 루틴 (25분 코스)</h3>
+        <p class="game-subtitle">
+          매일 <strong>국어·수학</strong>을 다지고, 격일로 <strong>영어·한자</strong>를 번갈아 풀어요!<br />
+          루틴을 마치면 <strong>💎 진화의 돌 1개 + 🍬 사탕 5개 + 🍀 이로치 부스트</strong>를 받아요!
+        </p>
+        <div id="routine-complete-banner" class="advice-banner hidden">🎉 오늘의 루틴을 모두 달성했어요! 진화의 돌과 사탕 보상이 지급되었어요!</div>
+        <div id="routine-subject-cards" class="routine-subject-cards"></div>
+        <div class="routine-control-row">
+          <button type="button" id="btn-routine-swap-alt" class="mini-tool-btn">🔄 오늘 교대 과목 바꾸기 (영어 ↔ 한자)</button>
+          <button type="button" id="btn-routine-toggle-mode" class="mini-tool-btn">🎯 루틴 집중 출제: 켜짐</button>
+        </div>
+        <div class="modal-btn-row">
+          <button type="button" id="btn-start-routine-run" class="stamp-close-btn">▶ 루틴 모험 출발!</button>
+          <button type="button" id="btn-close-routine-modal" class="nav-btn">닫기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 모달 8: 스마트폰 홈 화면 앱 설치 & PWABuilder APK 안내 모달 -->
+    <div id="pwa-install-modal" class="modal-backdrop hidden">
+      <div class="modal-card routine-modal-card">
+        <h3 class="stamp-modal-title">📲 스마트폰 앱으로 설치하기</h3>
+        <p id="pwa-install-status-text" class="game-subtitle">
+          스마트폰이나 태블릿 바탕화면에 아이콘을 추가하면 주소창 없이 진짜 게임 앱처럼 전체 화면으로 열리고, 인터넷이 없을 때도 작동해요!
+        </p>
+        <div class="routine-subject-cards">
+          <div class="routine-subj-row">
+            <div class="routine-subj-left">
+              <div class="routine-subj-title">🤖 안드로이드 (Chrome · 삼성 인터넷)</div>
+              <div class="routine-subj-desc">아래 <strong>[바로 앱 설치하기]</strong> 버튼(또는 브라우저 우상단 메뉴 ⋮ → <strong>앱 설치 / 홈 화면에 추가</strong>)을 누르세요.</div>
+            </div>
+          </div>
+          <div class="routine-subj-row">
+            <div class="routine-subj-left">
+              <div class="routine-subj-title">🍎 아이폰 · 아이패드 (Safari)</div>
+              <div class="routine-subj-desc">하단(또는 상단) <strong>공유 버튼(□↑)</strong>을 누른 뒤 <strong>홈 화면에 추가</strong>를 선택하세요.</div>
+            </div>
+          </div>
+          <div class="routine-subj-row">
+            <div class="routine-subj-left">
+              <div class="routine-subj-title">📦 정식 .apk 설치 파일로 변환할 때</div>
+              <div class="routine-subj-desc">이 패키지 폴더를 무료 웹 호스팅(Netlify Drop / GitHub Pages)에 올린 뒤 <strong>PWABuilder.com</strong>에 주소를 넣으면 서명된 <strong>.apk</strong> 파일을 바로 내려받을 수 있어요!</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-btn-row">
+          <button type="button" id="btn-trigger-native-install" class="stamp-close-btn hidden">📲 바로 앱 설치하기</button>
+          <button type="button" id="btn-close-pwa-modal" class="nav-btn">닫기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- fetch 없이 로컬 더블클릭(file://)으로 바로 실행되도록 JS 파일로 데이터 로드 -->
+  <script src="data/theme_assets.js"></script>
+  <script src="data/pokemon.js"></script>
+  <script src="data/evolutions.js"></script>
+  <script src="data/questions.js"></script>
+  <script src="data/visual_templates.js"></script>
+  <script src="data/hanja_strokes.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>

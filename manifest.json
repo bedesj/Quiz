@@ -1,0 +1,151 @@
+{
+  "id": "./index.html",
+  "name": "포켓몬 퀴즈 대모험",
+  "short_name": "포켓몬퀴즈",
+  "description": "7세·초등 1학년 맞춤형 5과목(국어·수학·영어·창의력·한자) 조작 교구 퀴즈와 전국도감 1,025마리 포켓몬 수집·진화를 함께 즐기는 학습 모험 앱",
+  "lang": "ko",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": [
+    "fullscreen",
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "any",
+  "background_color": "#5bc0f8",
+  "theme_color": "#ffd43b",
+  "prefer_related_applications": false,
+  "categories": [
+    "education",
+    "games",
+    "kids"
+  ],
+  "icons": [
+    {
+      "src": "icons/icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "screenshots/wide-title.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "포켓몬 애니메이션 오픈형 시작 화면과 출석·성취도 메뉴"
+    },
+    {
+      "src": "screenshots/wide-battle.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "초등 1학년 눈높이 한글 블록 조립·숫자 패드·한자 화선지 배틀"
+    },
+    {
+      "src": "screenshots/narrow-mobile.png",
+      "sizes": "720x1280",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "스마트폰과 태블릿 어디서나 전체 화면으로 즐기는 포켓몬 퀴즈 대모험"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "모험 바로 시작",
+      "short_name": "모험 시작",
+      "description": "네 지역 필드로 바로 떠나 포켓몬을 만나요",
+      "url": "./index.html?action=start",
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "오늘의 25분 루틴",
+      "short_name": "오늘의 루틴",
+      "description": "국어·수학·영어/한자 오늘의 학습 루틴을 시작해요",
+      "url": "./index.html?action=routine",
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "전국도감 · 진화",
+      "short_name": "전국도감",
+      "description": "잡은 포켓몬을 3D로 돌려보고 진화시켜요",
+      "url": "./index.html?action=pokedex",
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}
