@@ -2729,3 +2729,450 @@ html, body {
 }
 
 #pwa-install-modal .modal-card, #pwa-install-modal .stamp-modal-title, #pwa-install-modal .routine-subj-desc { word-break: keep-all; }
+
+/* === Offline Pokemon Sprite Vault Styles === */
+.corner-pill-btn.offline-pack {
+  background: linear-gradient(90deg, #fff3bf 0%, #d3f9d8 100%);
+}
+.corner-pill-btn.offline-pack.done {
+  background: linear-gradient(90deg, #d3f9d8 0%, #b2f2bb 100%);
+}
+.offline-modal-card {
+  max-width: 640px;
+  width: min(94vw, 640px);
+  max-height: min(90vh, 680px);
+  overflow-y: auto;
+  word-break: keep-all;
+}
+.offline-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.offline-net-badge {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 2px solid var(--ink);
+}
+.offline-net-badge.online {
+  background: #d3f9d8;
+  color: #1b4332;
+}
+.offline-net-badge.offline {
+  background: #ffe3e3;
+  color: #c92a2a;
+}
+.offline-pack-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0 10px;
+}
+.offline-tier-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch !important;
+  gap: 6px;
+  padding: 10px 12px !important;
+}
+.offline-tier-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.offline-size-tag {
+  display: inline-block;
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #edf2ff;
+  border: 1.5px solid #364fc7;
+  color: #364fc7;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.offline-dl-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 6px 12px !important;
+  font-weight: 800;
+}
+.offline-dl-btn.primary {
+  background: #ffd43b !important;
+}
+.offline-progress-track {
+  width: 100%;
+  height: 11px;
+  background: #e9ecef;
+  border-radius: 999px;
+  border: 2px solid var(--ink);
+  overflow: hidden;
+}
+.offline-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #51cf66 0%, #2b8a3e 100%);
+  transition: width 0.2s ease;
+}
+.offline-progress-fill.hd {
+  background: linear-gradient(90deg, #339af0 0%, #1c7ed6 100%);
+}
+.offline-progress-fill.shiny {
+  background: linear-gradient(90deg, #fcc419 0%, #f08c00 100%);
+}
+.offline-tier-status {
+  font-size: 12px;
+  color: #495057;
+  font-weight: 700;
+}
+img.offline-shiny-tint:not(.is-wild-silhouette) {
+  filter: hue-rotate(42deg) saturate(1.45) brightness(1.06) drop-shadow(0 0 10px rgba(255, 212, 59, 0.9));
+}
+
+@media (max-height: 540px) and (orientation: landscape) {
+  .title-left-controls,
+  .title-corner-controls {
+    gap: 5px;
+  }
+  #screen-title .corner-pill-btn {
+    padding: 4px 9px;
+    font-size: 12px;
+  }
+  .offline-modal-card {
+    padding: 12px 14px !important;
+    max-height: 92vh;
+  }
+  .offline-tier-card {
+    padding: 7px 10px !important;
+    gap: 4px;
+  }
+}
+
+/* === Portrait Header Fix & Anime Region Cards === */
+/* 1) 지역 선택 카드: 포켓몬 애니메이션 풍 일러스트 배경 + 가독성 반투명 배지 */
+.region-card {
+  position: relative;
+  overflow: hidden;
+  background-size: cover !important;
+  background-position: center !important;
+  min-height: clamp(138px, 21vh, 196px);
+}
+
+.region-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba(255, 255, 255, 0.42) 52%,
+    rgba(255, 255, 255, 0.86) 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.region-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.region-card .region-emoji {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.28));
+}
+
+.region-card .region-name {
+  color: #182238;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.region-card .region-desc {
+  color: #1e293b;
+  font-weight: 800;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* 2) 세로모드(태블릿 633x1000 · 스마트폰 390x844 등) 상단 제목 & 버튼 잘림 완벽 해결 */
+@media (orientation: portrait), (max-width: 980px) {
+  .top-bar {
+    height: auto;
+    min-height: 52px;
+    padding: 6px 10px 7px;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 5px;
+    column-gap: 5px;
+  }
+
+  /* 상단 중앙 제목(지역명 · 배틀 제목 · 전국도감 현황)을 1열 전체 폭으로 올려 세로모드에서 절대 잘리지 않게 표시! */
+  .top-center {
+    order: -1;
+    flex: 0 0 100%;
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    font-size: clamp(14.5px, 3.6vw, 18px);
+    line-height: 1.25;
+    padding: 2px 6px 4px;
+    border-bottom: 1.5px dashed rgba(35, 37, 56, 0.16);
+    overflow: visible;
+    white-space: normal;
+  }
+
+  .top-left,
+  .top-right {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .top-bar .nav-btn {
+    padding: 4px 8px;
+    font-size: clamp(11px, 2.5vw, 13px);
+    box-shadow: 0 2px 0 var(--ink);
+  }
+
+  /* 서브페이지(학습 수준 · 성취도) 상단 헤더도 세로모드 줄바꿈 보호 */
+  .subpage-header {
+    height: auto;
+    min-height: 50px;
+    padding: 8px 12px;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 6px;
+  }
+
+  .subpage-title {
+    font-size: clamp(17px, 4.4vw, 23px);
+  }
+}
+
+/* 스마트폰 세로모드(좁은 폭 <= 680px)에서 시작 화면 상단 버튼·로고 겹침 및 지역 카드 최적화 */
+@media (orientation: portrait) and (max-width: 680px) {
+  #screen-title {
+    justify-content: space-between;
+    padding: 10px 12px 22px;
+  }
+
+  .title-left-controls,
+  .title-corner-controls {
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .title-center-stack {
+    margin: auto 0;
+  }
+
+  .region-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 499px) {
+  .region-grid {
+    grid-template-columns: 1fr;
+    max-height: 100%;
+    overflow-y: auto;
+    padding-bottom: 6px;
+  }
+
+  #screen-region {
+    justify-content: flex-start;
+    overflow-y: auto;
+    padding-top: 14px;
+  }
+
+  .section-heading {
+    font-size: clamp(19px, 5.2vw, 26px);
+    text-align: center;
+    -webkit-text-stroke: 4px var(--navy-stroke);
+  }
+}
+
+/* 스마트폰 가로모드(높이 <= 540px)에서는 기존 1줄 컴팩트 상단 바 유지 */
+@media (max-height: 540px) and (orientation: landscape) {
+  .top-bar {
+    height: 40px;
+    min-height: 40px;
+    padding: 0 8px;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+  }
+  .top-center {
+    order: 0;
+    flex: 0 1 auto;
+    width: auto;
+    border-bottom: none;
+    padding: 0;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .top-left,
+  .top-right {
+    flex-wrap: nowrap;
+  }
+}
+
+/* === V5 Owned Box · Save/Delete · Hanja 150 Styles === */
+.subpage-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.save-manage-nav,
+.save-manage-highlight {
+  background: linear-gradient(90deg, #fff3bf 0%, #ffd8a8 100%) !important;
+}
+.dex-owned-badge {
+  display: inline-block;
+  margin-top: 2px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  border: 1.8px solid var(--ink);
+  background: #d3f9d8;
+  color: #1b4332;
+}
+.dex-owned-badge.empty {
+  background: #e9ecef;
+  color: #495057;
+}
+.dex-card.registered-zero-owned .dex-img {
+  opacity: 0.86;
+}
+.evo-zero-owned-notice {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 2px dashed #e67700;
+  background: #fff9db;
+  color: #7c2d12;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+  word-break: keep-all;
+}
+.hanja-grade-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 6px 0 8px;
+}
+.hanja-chip-grade {
+  font-size: 9.5px;
+  font-weight: 900;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(35, 37, 56, 0.09);
+  color: #334155;
+}
+.save-manage-card {
+  max-width: 650px;
+  width: min(94vw, 650px);
+  max-height: min(90vh, 700px);
+  overflow-y: auto;
+  word-break: keep-all;
+}
+.save-summary-banner {
+  padding: 9px 13px;
+  border-radius: 13px;
+  border: 2.5px solid var(--ink);
+  background: #e7f5ff;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.45;
+  margin-bottom: 6px;
+}
+.save-action-feedback {
+  padding: 7px 12px;
+  border-radius: 11px;
+  border: 2px solid #2b8a3e;
+  background: #ebfbee;
+  color: #1b4332;
+  font-size: 13px;
+  font-weight: 900;
+  margin-bottom: 6px;
+  text-align: center;
+}
+.save-inline-btns {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.save-row.warn-row {
+  background: #fff9db;
+}
+.save-row.danger-row {
+  background: #fff5f5;
+}
+.mini-tool-btn.warn-btn {
+  background: #ffe066;
+  border-color: #d9480f;
+  color: #7c2d12;
+  white-space: nowrap;
+}
+.mini-tool-btn.danger-btn {
+  background: #ffc9c9;
+  border-color: #c92a2a;
+  color: #c92a2a;
+  white-space: nowrap;
+}
+.mini-tool-btn.confirm-armed {
+  background: #e03131 !important;
+  color: #ffffff !important;
+  border-color: #232538 !important;
+  animation: battleShake 0.25s ease-in-out;
+}
+
+/* === Catch Rate 100-80-50 Pill Styles === */
+.hearts-and-rate-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.catch-rate-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 2px solid var(--ink);
+  font-size: clamp(11.5px, 1.7vmin, 14px);
+  font-weight: 900;
+  white-space: nowrap;
+  transition: transform 0.15s ease, background-color 0.2s ease;
+}
+.catch-rate-pill.rate-100 {
+  background: #d3f9d8;
+  color: #1b4332;
+}
+.catch-rate-pill.rate-80 {
+  background: #fff3bf;
+  color: #7c2d12;
+}
+.catch-rate-pill.rate-50 {
+  background: #ffd8a8;
+  color: #9c36b5;
+  border-color: #d9480f;
+  color: #c92a2a;
+}

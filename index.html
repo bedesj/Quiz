@@ -45,6 +45,7 @@
       <div class="title-left-controls">
         <button type="button" id="btn-open-routine-title" class="corner-pill-btn routine" title="일일 3과목 학습 루틴 열기">📅 오늘의 루틴 0/14</button>
         <button type="button" id="btn-install-pwa" class="corner-pill-btn pwa-install" title="스마트폰·태블릿 홈 화면에 앱으로 설치하기">📲 앱 설치</button>
+        <button type="button" id="btn-offline-pack" class="corner-pill-btn offline-pack" title="비행기 모드에서도 1,025마리 실물 포켓몬이 나오도록 기기에 미리 저장해요">📦 오프라인 도감</button>
       </div>
 
       <!-- 우측 상단 깔끔한 플로팅 버튼 -->
@@ -141,7 +142,7 @@
               <button type="button" id="btn-toggle-interactive" class="mini-tool-btn">🧩 조작 입력기 켜짐</button>
               <button type="button" id="btn-toggle-hanja" class="mini-tool-btn">🖌️ 한자 켜짐</button>
               <button type="button" id="btn-toggle-flee" class="mini-tool-btn">🛡️ 무벌칙 해설 모드</button>
-              <button type="button" id="btn-export-json" class="mini-tool-btn">💾 기록 백업</button>
+              <button type="button" id="btn-export-json" class="mini-tool-btn save-manage-highlight">💾 저장 · 백업 · 삭제</button>
             </div>
           </div>
           <div id="svg-preview-box" class="svg-preview-box hidden"></div>
@@ -156,7 +157,10 @@
         <div class="subpage-title-wrap">
           <span class="subpage-title">📊 성취도</span>
         </div>
-        <button type="button" id="btn-progress-to-level" class="subpage-nav-btn">⚙️ 학습 수준</button>
+        <div class="subpage-header-actions">
+          <button type="button" id="btn-progress-save-manage" class="subpage-nav-btn save-manage-nav">💾 저장 · 삭제</button>
+          <button type="button" id="btn-progress-to-level" class="subpage-nav-btn">⚙️ 학습 수준</button>
+        </div>
       </header>
 
       <div class="progress-legend-bar">
@@ -183,7 +187,10 @@
     <section id="screen-battle" class="screen">
       <div class="battle-container">
         <div id="battle-hud" class="battle-hud">
-          <div id="battle-hearts" class="hearts-box" aria-label="원샷 보너스 하트">❤️❤️❤️</div>
+          <div class="hearts-and-rate-wrap">
+            <div id="battle-hearts" class="hearts-box" aria-label="원샷 보너스 하트">❤️❤️❤️</div>
+            <span id="battle-catch-rate-pill" class="catch-rate-pill rate-100">🎯 포획 100%</span>
+          </div>
           <div class="battle-hud-right">
             <span id="battle-routine-pill" class="routine-pill hidden">📅 루틴 0/14</span>
             <span id="battle-boost-pill" class="boost-pill hidden">🍀 복습 이로치 부스트!</span>
@@ -243,7 +250,8 @@
       <div class="pokedex-toolbar">
         <div class="filter-tabs">
           <button type="button" id="filter-btn-all" class="filter-btn active">전체 (1025)</button>
-          <button type="button" id="filter-btn-caught" class="filter-btn">잡은 포켓몬 (0)</button>
+          <button type="button" id="filter-btn-caught" class="filter-btn">📖 도감 등록 (0)</button>
+          <button type="button" id="filter-btn-owned" class="filter-btn">🎒 보유 포켓몬 (0)</button>
           <button type="button" id="filter-btn-evolvable" class="filter-btn">🧬 진화 가능 (0)</button>
           <button type="button" id="filter-btn-shiny" class="filter-btn">✨ 색이 다른 (0)</button>
           <select id="pokedex-gen-select" class="gen-select" aria-label="세대 선택"></select>
@@ -288,11 +296,18 @@
       </div>
     </div>
 
-    <!-- 모달 3: 한자 아는 글자 선택 팝업 (8급 50자) -->
+    <!-- 모달 3: 한자 아는 글자 선택 팝업 (한자능력검정시험 8급 · 준7급 · 7급 150자) -->
     <div id="hanja-known-modal" class="modal-backdrop hidden">
       <div class="modal-card hanja-modal-card">
-        <h3 class="result-headline">漢 이미 아는 한자 고르기 (8급 50자)</h3>
-        <p class="game-subtitle">아이가 이미 읽을 줄 아는 글자를 눌러 두면 새 문제 대신 복습 위주로 가볍게 나와요.</p>
+        <h3 id="hanja-modal-headline" class="result-headline">漢 이미 아는 한자 고르기 (8급~7급 150자)</h3>
+        <p class="game-subtitle">아이가 이미 아는 글자를 골라 두면 아직 모르는 급수 한자를 우선 출제해요.</p>
+        <div class="hanja-grade-tabs">
+          <button type="button" class="filter-btn hanja-grade-tab active" data-hgrade="all">전체 (150자)</button>
+          <button type="button" class="filter-btn hanja-grade-tab" data-hgrade="8급">8급 (50자)</button>
+          <button type="button" class="filter-btn hanja-grade-tab" data-hgrade="준7급">준7급 (50자)</button>
+          <button type="button" class="filter-btn hanja-grade-tab" data-hgrade="7급">7급 (50자)</button>
+          <button type="button" id="btn-hanja-bulk-toggle" class="mini-tool-btn">✅ 현재 탭 전체 선택/해제</button>
+        </div>
         <div id="hanja-known-grid" class="hanja-char-grid"></div>
         <button type="button" id="btn-close-hanja-modal" class="stamp-close-btn">확인</button>
       </div>
@@ -412,7 +427,123 @@
         </div>
         <div class="modal-btn-row">
           <button type="button" id="btn-trigger-native-install" class="stamp-close-btn hidden">📲 바로 앱 설치하기</button>
+          <button type="button" id="btn-open-offline-from-pwa" class="mini-tool-btn">📦 오프라인 포켓몬 1,025마리 저장소 열기</button>
           <button type="button" id="btn-close-pwa-modal" class="nav-btn">닫기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 모달 9: 비행기 모드(오프라인) 전용 전국도감 1,025마리 실물 이미지 보관함 -->
+    <div id="offline-pack-modal" class="modal-backdrop hidden">
+      <div class="modal-card routine-modal-card offline-modal-card">
+        <div class="offline-modal-head">
+          <h3 class="stamp-modal-title">📦 오프라인 포켓몬 이미지 보관함</h3>
+          <span id="offline-net-badge" class="offline-net-badge online">🌐 온라인 연결됨</span>
+        </div>
+        <p id="offline-pack-lead" class="game-subtitle">
+          Wi-Fi가 켜진 상태에서 한 번만 저장해 두면 <strong>비행기 모드·차 안(통신 없음)</strong>에서도 회색 대체 그림 대신 <strong>1,025마리 진짜 포켓몬 모습</strong>이 그대로 나와요!
+        </p>
+
+        <div class="routine-subject-cards offline-pack-cards">
+          <div class="routine-subj-row offline-tier-card">
+            <div class="offline-tier-top">
+              <div>
+                <div class="routine-subj-title">⚡ 1단계 · 기본 실물 도감 1,025마리 <span class="offline-size-tag">약 4MB · 자동 저장</span></div>
+                <div class="routine-subj-desc">Wi-Fi 연결 시 백그라운드에서 5~10초 만에 자동 저장돼요. 모든 포켓몬(#0001~#1025)이 공식 도감 도트/실물 모습으로 표시됩니다.</div>
+              </div>
+              <button type="button" id="btn-download-fast-pack" class="mini-tool-btn offline-dl-btn">⚡ 지금 저장</button>
+            </div>
+            <div class="offline-progress-track">
+              <div id="offline-fast-bar" class="offline-progress-fill" style="width: 0%"></div>
+            </div>
+            <div id="offline-fast-status" class="offline-tier-status">저장 확인 중... (0 / 1,025마리)</div>
+          </div>
+
+          <div class="routine-subj-row offline-tier-card">
+            <div class="offline-tier-top">
+              <div>
+                <div class="routine-subj-title">🌟 2단계 · 고화질 HOME 3D 도감 1,025마리 <span class="offline-size-tag">약 40MB · 추천</span></div>
+                <div class="routine-subj-desc">배틀과 도감에서 크고 선명한 포켓몬 HOME 3D 입체 일러스트를 오프라인에서도 100% 그대로 보여 줍니다.</div>
+              </div>
+              <button type="button" id="btn-download-hd-pack" class="mini-tool-btn offline-dl-btn primary">📥 고화질 전체 저장</button>
+            </div>
+            <div class="offline-progress-track">
+              <div id="offline-hd-bar" class="offline-progress-fill hd" style="width: 0%"></div>
+            </div>
+            <div id="offline-hd-status" class="offline-tier-status">미저장 (0 / 1,025마리)</div>
+          </div>
+
+          <div class="routine-subj-row offline-tier-card">
+            <div class="offline-tier-top">
+              <div>
+                <div class="routine-subj-title">✨ 3단계 · 색이 다른(이로치) 3D 도감 1,025마리 <span class="offline-size-tag">약 40MB · 선택</span></div>
+                <div class="routine-subj-desc">오프라인에서 이로치 포켓몬을 만났을 때 전용 이로치 원화까지 완벽하게 표시합니다(미저장 시에도 황금빛 실물로 표시).</div>
+              </div>
+              <button type="button" id="btn-download-shiny-pack" class="mini-tool-btn offline-dl-btn">✨ 이로치 저장</button>
+            </div>
+            <div class="offline-progress-track">
+              <div id="offline-shiny-bar" class="offline-progress-fill shiny" style="width: 0%"></div>
+            </div>
+            <div id="offline-shiny-status" class="offline-tier-status">미저장 (0 / 1,025마리)</div>
+          </div>
+        </div>
+
+        <div class="modal-btn-row">
+          <button type="button" id="btn-pause-offline-dl" class="nav-btn hidden">⏸ 일시정지</button>
+          <button type="button" id="btn-close-offline-modal" class="stamp-close-btn">확인 (백그라운드 계속 유지)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 모달 10: 진행·성취도 저장 · 백업/불러오기 · 삭제(초기화) 관리 모달 -->
+    <div id="save-manage-modal" class="modal-backdrop hidden">
+      <div class="modal-card routine-modal-card save-manage-card">
+        <h3 class="stamp-modal-title">💾 진행 · 성취도 저장 및 삭제 관리</h3>
+        <div id="save-summary-banner" class="save-summary-banner">
+          현재 기록 불러오는 중...
+        </div>
+        <div id="save-action-feedback" class="save-action-feedback hidden"></div>
+
+        <div class="routine-subject-cards save-manage-list">
+          <div class="routine-subj-row save-row">
+            <div class="routine-subj-left">
+              <div class="routine-subj-title">💾 기기에 즉시 이중 저장하기</div>
+              <div class="routine-subj-desc">브라우저 저장소(localStorage)와 내장 DB(IndexedDB) 두 곳에 동시에 안전하게 저장합니다.</div>
+            </div>
+            <button type="button" id="btn-save-now-device" class="mini-tool-btn offline-dl-btn primary">💾 지금 저장</button>
+          </div>
+
+          <div class="routine-subj-row save-row">
+            <div class="routine-subj-left">
+              <div class="routine-subj-title">📤 파일로 백업 · 📂 불러오기</div>
+              <div class="routine-subj-desc">오프라인 백업 파일(.json)로 내려받아 보관하거나 다른 태블릿·PC에서 그대로 이어할 수 있어요.</div>
+            </div>
+            <div class="save-inline-btns">
+              <button type="button" id="btn-save-export-file" class="mini-tool-btn">📤 백업 저장</button>
+              <button type="button" id="btn-save-import-file" class="mini-tool-btn">📂 불러오기</button>
+              <input type="file" id="input-import-save-file" accept=".json,application/json" class="hidden" />
+            </div>
+          </div>
+
+          <div class="routine-subj-row save-row warn-row">
+            <div class="routine-subj-left">
+              <div class="routine-subj-title">🧹 학습 성취도 · 오답 기록만 삭제</div>
+              <div class="routine-subj-desc">아이가 모은 <strong>포켓몬 도감과 보유 포켓몬은 그대로 남기고</strong>, 과목별 단원 성취도와 오답 노트만 초기화합니다.</div>
+            </div>
+            <button type="button" id="btn-reset-progress-only" class="mini-tool-btn warn-btn">🧹 성취도만 삭제</button>
+          </div>
+
+          <div class="routine-subj-row save-row danger-row">
+            <div class="routine-subj-left">
+              <div class="routine-subj-title">🗑️ 모든 기록 완전 삭제 (전체 초기화)</div>
+              <div class="routine-subj-desc">도감 등록, 보유 포켓몬, 학습 성취도, 출석 도장, 사탕·진화의 돌을 모두 처음 상태로 완전히 비웁니다.</div>
+            </div>
+            <button type="button" id="btn-reset-all-everything" class="mini-tool-btn danger-btn">🗑️ 전체 삭제</button>
+          </div>
+        </div>
+
+        <div class="modal-btn-row">
+          <button type="button" id="btn-close-save-modal" class="stamp-close-btn">닫기</button>
         </div>
       </div>
     </div>
@@ -420,6 +551,7 @@
 
   <!-- fetch 없이 로컬 더블클릭(file://)으로 바로 실행되도록 JS 파일로 데이터 로드 -->
   <script src="data/theme_assets.js"></script>
+  <script src="data/offline_sprites_bundle.js"></script>
   <script src="data/pokemon.js"></script>
   <script src="data/evolutions.js"></script>
   <script src="data/questions.js"></script>

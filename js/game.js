@@ -53,7 +53,9 @@
     justStampedToday: false,
     soundOn: true,
     voiceMode: "parent", // 'parent' | 'touch' | 'auto'
-    shinyMode: "kid",
+    shinyMode: "go",
+    shinyMigratedToGoV3: true,
+    lastSavedAt: "",
     presetId: "starter", // 'starter' | 'basic' | 'advanced' | 'custom'
     subjectUnitIdx: {
       korean: 0,
@@ -95,6 +97,7 @@
     lastBattleCandyGain: 0,
     lastBattleStoneGain: 0,
     forceShinyNext: false,
+    forceNextCatchRoll: null,
     forceVisualSubj: "",
     forceInputTypeNext: "", // 'numpad' | 'hangul_assemble' | 'hanja_trace'
     forcedBattleUnit: null // { subject, unitId }
@@ -184,6 +187,7 @@
     isShiny: false,
     pokemon: null,
     hearts: 3,
+    wrongCount: 0,
     stage: "silhouette",
     currentChoiceList: [],
     currentAnswer: "",
@@ -245,6 +249,8 @@
     return best;
   }
 
+  var REGION_BG_IMAGES = {};
+
   function applyAnimeThemeBackgrounds() {
     if (!window.THEME_ASSETS) return;
     var titleScreen = document.getElementById("screen-title");
@@ -254,6 +260,21 @@
     var battleScreen = document.getElementById("screen-battle");
     if (battleScreen && window.THEME_ASSETS.battleBg) {
       battleScreen.style.backgroundImage = 'url("' + window.THEME_ASSETS.battleBg + '")';
+    }
+    var rBgs = window.THEME_ASSETS.regionBgs || {};
+    var rKeys = ["forest", "city", "desert", "sea"];
+    for (var i = 0; i < rKeys.length; i++) {
+      (function (rk) {
+        if (!rBgs[rk]) return;
+        var im = new Image();
+        im.onload = function () {
+          if (state.screen === "field" && state.regionId === rk) {
+            drawField();
+          }
+        };
+        im.src = rBgs[rk];
+        REGION_BG_IMAGES[rk] = im;
+      })(rKeys[i]);
     }
   }
 
@@ -314,14 +335,35 @@
 
   function applySavedPayload(parsed) {
     if (!parsed || typeof parsed !== "object") return;
-    if (parsed.caught && typeof parsed.caught === "object") state.caught = parsed.caught;
+    if (parsed.caught && typeof parsed.caught === "object") {
+      var normCaught = {};
+      var cKeys = Object.keys(parsed.caught);
+      for (var ci = 0; ci < cKeys.length; ci++) {
+        var ck = cKeys[ci];
+        var rawEntry = parsed.caught[ck];
+        if (rawEntry && typeof rawEntry === "object") {
+          normCaught[ck] = normalizeDexEntry(rawEntry);
+        }
+      }
+      state.caught = normCaught;
+    }
     if (Array.isArray(parsed.stamps)) state.stamps = parsed.stamps;
     if (typeof parsed.soundOn === "boolean") state.soundOn = parsed.soundOn;
     if (parsed.voiceMode && (parsed.voiceMode === "parent" || parsed.voiceMode === "touch" || parsed.voiceMode === "auto")) {
       state.voiceMode = parsed.voiceMode;
     }
-    if (parsed.shinyMode && window.SHINY_MODES && window.SHINY_MODES[parsed.shinyMode]) {
-      state.shinyMode = parsed.shinyMode;
+    if (parsed.shinyMigratedToGoV3) {
+      state.shinyMigratedToGoV3 = true;
+      if (parsed.shinyMode && window.SHINY_MODES && window.SHINY_MODES[parsed.shinyMode]) {
+        state.shinyMode = parsed.shinyMode;
+      }
+    } else {
+      // 기존 저장 데이터도 요청에 따라 기본 이로치 확률을 '포켓몬 GO 급(go)'으로 자동 전환!
+      state.shinyMode = "go";
+      state.shinyMigratedToGoV3 = true;
+    }
+    if (typeof parsed.lastSavedAt === "string") {
+      state.lastSavedAt = parsed.lastSavedAt;
     }
     if (parsed.presetId && typeof parsed.presetId === "string") {
       state.presetId = parsed.presetId;
@@ -417,9 +459,106 @@
     }
   }
 
+  function formatNowTimestamp() {
+    var d = new Date();
+    var pad2 = function (n) { return String(n).padStart(2, "0"); };
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()) + " " +
+           pad2(d.getHours()) + ":" + pad2(d.getMinutes()) + ":" + pad2(d.getSeconds());
+  }
+
+  function normalizeDexEntry(entry) {
+    if (!entry || typeof entry !== "object") {
+      return { registered: true, count: 1, owned: 1, shiny: false, shinyCount: 0, shinyOwned: 0, perfectCount: 0, firstDate: getTodayLocalStr() };
+    }
+    var totalCnt = Math.max(1, Number(entry.count) || 1);
+    var ownedCnt = (typeof entry.owned === "number" && !isNaN(entry.owned))
+      ? Math.max(0, Math.floor(entry.owned))
+      : totalCnt;
+    var hasShinyReg = !!(entry.shiny || entry.shinyRegistered || (Number(entry.shinyCount) > 0));
+    var sOwned = (typeof entry.shinyOwned === "number" && !isNaN(entry.shinyOwned))
+      ? Math.max(0, Math.min(ownedCnt, Math.floor(entry.shinyOwned)))
+      : (hasShinyReg ? Math.min(ownedCnt, Math.max(1, Number(entry.shinyCount) || 1)) : 0);
+    return {
+      registered: entry.registered !== false,
+      count: totalCnt,
+      owned: ownedCnt,
+      shiny: hasShinyReg,
+      shinyCount: Math.max(sOwned, Number(entry.shinyCount) || (hasShinyReg ? 1 : 0)),
+      shinyOwned: sOwned,
+      perfectCount: Number(entry.perfectCount) || 0,
+      evolvedFrom: entry.evolvedFrom || null,
+      firstDate: entry.firstDate || getTodayLocalStr()
+    };
+  }
+
+  function writeSaveToIndexedDbQuietly(serialized) {
+    try {
+      if (typeof window.indexedDB === "undefined") return;
+      var req = window.indexedDB.open("PokeQuizSaveDB", 1);
+      req.onupgradeneeded = function (ev) {
+        var db = ev.target.result;
+        if (!db.objectStoreNames.contains("saves")) {
+          db.createObjectStore("saves");
+        }
+      };
+      req.onsuccess = function (ev) {
+        try {
+          var db = ev.target.result;
+          var tx = db.transaction("saves", "readwrite");
+          var store = tx.objectStore("saves");
+          if (serialized === null) {
+            store.delete("main");
+          } else {
+            store.put(serialized, "main");
+          }
+        } catch (e2) {}
+      };
+    } catch (e) {}
+  }
+
+  function restoreFromIndexedDbIfEmpty(doneCb) {
+    try {
+      var existingRaw = null;
+      try { existingRaw = window.localStorage.getItem(STORAGE_KEY); } catch (e0) {}
+      if (existingRaw || typeof window.indexedDB === "undefined") {
+        if (doneCb) doneCb(false);
+        return;
+      }
+      var req = window.indexedDB.open("PokeQuizSaveDB", 1);
+      req.onupgradeneeded = function (ev) {
+        var db = ev.target.result;
+        if (!db.objectStoreNames.contains("saves")) db.createObjectStore("saves");
+      };
+      req.onsuccess = function (ev) {
+        try {
+          var db = ev.target.result;
+          var tx = db.transaction("saves", "readonly");
+          var gReq = tx.objectStore("saves").get("main");
+          gReq.onsuccess = function () {
+            if (gReq.result && typeof gReq.result === "string") {
+              try {
+                applySavedPayload(JSON.parse(gReq.result));
+                try { window.localStorage.setItem(STORAGE_KEY, gReq.result); } catch (e3) {}
+                if (doneCb) doneCb(true);
+                return;
+              } catch (e4) {}
+            }
+            if (doneCb) doneCb(false);
+          };
+          gReq.onerror = function () { if (doneCb) doneCb(false); };
+        } catch (e2) { if (doneCb) doneCb(false); }
+      };
+      req.onerror = function () { if (doneCb) doneCb(false); };
+    } catch (e) {
+      if (doneCb) doneCb(false);
+    }
+  }
+
   function buildSerializableState() {
     return {
-      version: 2,
+      version: 3,
+      shinyMigratedToGoV3: true,
+      lastSavedAt: state.lastSavedAt || formatNowTimestamp(),
       caught: state.caught,
       stamps: state.stamps,
       soundOn: state.soundOn,
@@ -447,9 +586,11 @@
   }
 
   function saveState() {
+    state.lastSavedAt = formatNowTimestamp();
     var serialized = JSON.stringify(buildSerializableState());
     try { window.localStorage.setItem(STORAGE_KEY, serialized); } catch (e) {}
     try { window.name = STORAGE_KEY + ":" + serialized; } catch (e2) {}
+    writeSaveToIndexedDbQuietly(serialized);
   }
 
   function resetSaveData() {
@@ -457,7 +598,8 @@
     state.stamps = [];
     state.soundOn = true;
     state.voiceMode = "parent";
-    state.shinyMode = "kid";
+    state.shinyMode = "go";
+    state.shinyMigratedToGoV3 = true;
     state.presetId = "starter";
     state.subjectUnitIdx = { korean: 0, math: 0, english: 0, hanja: 0 };
     state.creativeDiff = "easy";
@@ -486,6 +628,7 @@
     try { window.localStorage.removeItem(STORAGE_KEY); } catch (e) {}
     try { window.localStorage.removeItem(LEGACY_STORAGE_KEY); } catch (e1) {}
     try { window.name = ""; } catch (e2) {}
+    writeSaveToIndexedDbQuietly(null);
   }
 
   // ---------------- 학습 시도 기록 & 단원 완료 · 간격 복습 ----------------
@@ -733,17 +876,50 @@
     return map[String(pokeId)] || [];
   }
 
+  function getOwnedCount(pokeId) {
+    var rec = state.caught[String(pokeId)];
+    if (!rec) return 0;
+    if (typeof rec.owned === "number" && !isNaN(rec.owned)) return Math.max(0, Math.floor(rec.owned));
+    return Math.max(0, Number(rec.count) || 0);
+  }
+
+  function getShinyOwnedCount(pokeId) {
+    var rec = state.caught[String(pokeId)];
+    if (!rec) return 0;
+    var tot = getOwnedCount(pokeId);
+    if (typeof rec.shinyOwned === "number" && !isNaN(rec.shinyOwned)) {
+      return Math.max(0, Math.min(tot, Math.floor(rec.shinyOwned)));
+    }
+    return rec.shiny ? Math.min(tot, 1) : 0;
+  }
+
+  function isOwned(pokeId) {
+    return getOwnedCount(pokeId) >= 1;
+  }
+
+  function getOwnedSpeciesCount() {
+    var keys = Object.keys(state.caught);
+    var cnt = 0;
+    for (var i = 0; i < keys.length; i++) {
+      if (getOwnedCount(keys[i]) >= 1) cnt += 1;
+    }
+    return cnt;
+  }
+
+  function getTotalOwnedIndividualsCount() {
+    var keys = Object.keys(state.caught);
+    var sum = 0;
+    for (var i = 0; i < keys.length; i++) {
+      sum += getOwnedCount(keys[i]);
+    }
+    return sum;
+  }
+
   function canPokemonEvolveNow(pokeId) {
-    if (!isCaught(pokeId)) return false;
+    // ★ 핵심 규칙: 도감에만 등록되어 있고 보유 개체가 0마리(이미 진화함)면 진화 불가! 반드시 실제 보유 개체(>=1마리)가 있어야 함!
+    if (getOwnedCount(pokeId) < 1) return false;
     var nextList = getNextEvolutions(pokeId);
     if (nextList.length === 0) return false;
-    for (var i = 0; i < nextList.length; i++) {
-      var ev = nextList[i];
-      var canAfford = ev.stone > 0
-        ? (state.evoStones >= ev.stone || state.evoCandy >= ev.candy + 1)
-        : (state.evoCandy >= ev.candy);
-      if (canAfford && !isCaught(ev.to)) return true;
-    }
     for (var j = 0; j < nextList.length; j++) {
       var ev2 = nextList[j];
       var ok2 = ev2.stone > 0
@@ -880,7 +1056,7 @@
       state.forceShinyNext = false;
       return true;
     }
-    var mode = (window.SHINY_MODES && window.SHINY_MODES[state.shinyMode]) || window.SHINY_MODES.kid;
+    var mode = (window.SHINY_MODES && window.SHINY_MODES[state.shinyMode]) || window.SHINY_MODES.go;
     var rate = isGold ? mode.goldRate : mode.normalRate;
     if (isReview) rate = Math.max(rate * 2, 0.12);
     if (state.shinyBoostBattles > 0) {
@@ -1105,12 +1281,13 @@
     var subCol = useShiny ? "#F48FB1" : accentColor;
     var belly = useShiny ? "#FFF9C4" : "#FFFDF7";
     var seed = pokemon.id;
-    var arch = seed % 8;
-    if (mainType === "비행") arch = 1;
+    var nonElectricArchs = [0, 1, 2, 4, 5, 6, 7];
+    var arch = nonElectricArchs[seed % nonElectricArchs.length];
+    if (mainType === "전기" || subType === "전기") arch = 3;
+    else if (mainType === "비행") arch = 1;
     else if (mainType === "물" || mainType === "얼음") arch = (seed % 2 === 0) ? 2 : 5;
-    else if (mainType === "전기") arch = 3;
     else if (mainType === "바위" || mainType === "강철" || mainType === "땅") arch = 4;
-    else if (mainType === "고스트" || mainType === "에스퍼") arch = 6;
+    else if (mainType === "고스트" || mainType === "에스퍼" || subType === "에스퍼") arch = (seed % 2 === 0) ? 5 : 6;
     else if (mainType === "드래곤" || mainType === "불꽃") arch = (seed % 2 === 0) ? 7 : 1;
     else if (mainType === "풀" || mainType === "벌레") arch = 0;
 
@@ -1206,6 +1383,139 @@
     if (sp) sp.classList.toggle("hidden", !visible);
   }
 
+  var POKE_SPRITE_CACHE_NAME = "poke-sprites-v1";
+  var BLOB_URL_CACHE = {};
+  var BLOB_TINT_CACHE = {};
+  var offlinePackState = {
+    supported: false,
+    audited: false,
+    downloadingTier: "", // '' | 'fast' | 'hd' | 'shiny'
+    cancelRequested: false,
+    fastSet: {},
+    hdSet: {},
+    shinySet: {},
+    fastCount: 0,
+    hdCount: 0,
+    shinyCount: 0
+  };
+
+  function canUseSpriteCacheStorage() {
+    try {
+      var proto = window.location.protocol;
+      return (
+        typeof window.caches !== "undefined" &&
+        (proto === "https:" || proto === "http:")
+      );
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function getSpriteUrlBases() {
+    var ov = window.POKE_SPRITE_BASE_OVERRIDE || null;
+    if (ov && typeof ov === "object") {
+      return {
+        compact: ov.compact || "https://cdn.jsdelivr.net/gh/PokeAPI/sprites@master/sprites/pokemon/",
+        home: ov.home || "https://cdn.jsdelivr.net/gh/PokeAPI/sprites@master/sprites/pokemon/other/home/",
+        art: ov.art || "https://cdn.jsdelivr.net/gh/PokeAPI/sprites@master/sprites/pokemon/other/official-artwork/",
+        rawHome: ov.rawHome || "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/"
+      };
+    }
+    return {
+      compact: "https://cdn.jsdelivr.net/gh/PokeAPI/sprites@master/sprites/pokemon/",
+      home: "https://cdn.jsdelivr.net/gh/PokeAPI/sprites@master/sprites/pokemon/other/home/",
+      art: "https://cdn.jsdelivr.net/gh/PokeAPI/sprites@master/sprites/pokemon/other/official-artwork/",
+      rawHome: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/"
+    };
+  }
+
+  function buildSpriteCacheLookupList(pokeId, useShiny) {
+    var b = getSpriteUrlBases();
+    var pfx = useShiny ? "shiny/" : "";
+    var list = [
+      { url: b.home + pfx + pokeId + ".png", isTint: false, isCompact: false },
+      { url: b.art + pfx + pokeId + ".png", isTint: false, isCompact: false },
+      { url: b.rawHome + pfx + pokeId + ".png", isTint: false, isCompact: false },
+      { url: b.compact + pfx + pokeId + ".png", isTint: false, isCompact: true }
+    ];
+    if (useShiny) {
+      // 오프라인에서 이로치 전용 PNG가 아직 없을 때 일반 실물 PNG에 황금 이로치 오라를 입혀 회색 대체 그림을 방지!
+      list.push({ url: b.home + pokeId + ".png", isTint: true, isCompact: false });
+      list.push({ url: b.compact + pokeId + ".png", isTint: true, isCompact: true });
+    }
+    return list;
+  }
+
+  function lookupCachedPokemonBlobUrl(pokemon, useShiny, cb) {
+    var cacheKey = pokemon.id + (useShiny ? "_s" : "_n");
+    if (BLOB_URL_CACHE[cacheKey]) {
+      cb({ url: BLOB_URL_CACHE[cacheKey], isTint: !!BLOB_TINT_CACHE[cacheKey] });
+      return;
+    }
+    if (!canUseSpriteCacheStorage()) {
+      cb(null);
+      return;
+    }
+    var targets = buildSpriteCacheLookupList(pokemon.id, !!useShiny);
+    // 1차 캐시 조회에서는 실제 이로치 PNG만 먼저 찾고, 네트워크까지 실패했을 때 2차로 일반 실물 황금 틴트를 사용
+    if (useShiny && !(typeof navigator !== "undefined" && navigator.onLine === false)) {
+      targets = targets.filter(function (t) { return !t.isTint; });
+    }
+
+    window.caches.open(POKE_SPRITE_CACHE_NAME).then(function (cache) {
+      var idx = 0;
+      function nextMatch() {
+        if (idx >= targets.length) {
+          cb(null);
+          return;
+        }
+        var item = targets[idx++];
+        cache.match(item.url, { ignoreSearch: true }).then(function (res) {
+          if (res && res.ok) {
+            return res.blob().then(function (blob) {
+              if (blob && blob.size > 64) {
+                var objUrl = URL.createObjectURL(blob);
+                if (!item.isTint) {
+                  BLOB_URL_CACHE[cacheKey] = objUrl;
+                  BLOB_TINT_CACHE[cacheKey] = false;
+                }
+                cb({ url: objUrl, isTint: item.isTint, isCompact: item.isCompact });
+                return;
+              }
+              nextMatch();
+            });
+          }
+          nextMatch();
+        }).catch(function () {
+          nextMatch();
+        });
+      }
+      nextMatch();
+    }).catch(function () {
+      cb(null);
+    });
+  }
+
+  function saveUrlToPokemonCacheSilently(targetUrl, pokeId, tierHint) {
+    if (!canUseSpriteCacheStorage() || !targetUrl || targetUrl.indexOf("http") !== 0) return;
+    window.caches.open(POKE_SPRITE_CACHE_NAME).then(function (cache) {
+      cache.match(targetUrl, { ignoreSearch: true }).then(function (existing) {
+        if (existing && existing.ok) {
+          markSpriteCachedInMemory(pokeId, tierHint);
+          return;
+        }
+        var req = new Request(targetUrl, { mode: "cors", credentials: "omit" });
+        window.fetch(req).then(function (res) {
+          if (res && res.status === 200) {
+            cache.put(targetUrl, res.clone()).then(function () {
+              markSpriteCachedInMemory(pokeId, tierHint);
+            });
+          }
+        }).catch(function () {});
+      });
+    }).catch(function () {});
+  }
+
   function applyPokemonImage(imgEl, pokemon, useShiny) {
     if (!imgEl || !pokemon) return;
     var reqId = String(++imageReqSeq);
@@ -1216,8 +1526,11 @@
     imgEl.dataset.pokeId = String(pokemon.id);
     imgEl.dataset.pokeShiny = useShiny ? "1" : "0";
     imgEl.dataset.usingFallback = "0";
-    imgEl.classList.remove("is-pixel-sprite");
+    imgEl.classList.remove("is-pixel-sprite", "offline-shiny-tint");
 
+    if (window.OFFLINE_SPRITE_DATA_URIS && window.OFFLINE_SPRITE_DATA_URIS[cacheKey]) {
+      DATA_URI_CACHE[cacheKey] = window.OFFLINE_SPRITE_DATA_URIS[cacheKey];
+    }
     if (DATA_URI_CACHE[cacheKey]) {
       imgEl.onload = function () {
         if (imgEl.dataset.reqId !== reqId) return;
@@ -1234,122 +1547,168 @@
       return;
     }
 
-    if (
-      (netState.consecutiveTotalFailures >= 4 || (netState.jsdelivr === "blocked" && netState.rawGitHub === "blocked" && fetchBridgeFailures >= 2)) &&
-      netState.rawGitHub !== "ok" &&
-      netState.jsdelivr !== "ok" &&
-      netState.pokeApi !== "ok"
-    ) {
-      finishWithFallbackSvg(imgEl, pokemon, useShiny, reqId, isBattleImg);
-      return;
-    }
-
-    var candidates = buildPokemonImageCandidates(pokemon, !!useShiny);
-    var idx = (netState.jsdelivr === "blocked" && netState.rawGitHub === "blocked") ? candidates.length : 0;
-    var apiTried = false;
-    var watchdogId = null;
-
-    if (isBattleImg) setBattleSpinnerVisible(true);
-    if (!imgEl.dataset.savedAlt) imgEl.dataset.savedAlt = imgEl.alt || "";
-    imgEl.alt = "";
-
-    function clearWatchdog() {
-      if (watchdogId !== null) {
-        clearTimeout(watchdogId);
-        watchdogId = null;
+    // 1순위: 기기 내 영구 포켓몬 캐시(poke-sprites-v1) 직접 조회 — 비행기 모드(오프라인)에서도 2ms 안에 실물 포켓몬 즉시 렌더링!
+    lookupCachedPokemonBlobUrl(pokemon, !!useShiny, function (cachedHit) {
+      if (imgEl.dataset.reqId !== reqId) return;
+      if (cachedHit && cachedHit.url) {
+        imgEl.onload = function () {
+          if (imgEl.dataset.reqId !== reqId) return;
+          if (imgEl.dataset.savedAlt !== undefined) imgEl.alt = imgEl.dataset.savedAlt;
+          if (isBattleImg) setBattleSpinnerVisible(false);
+          var nw = imgEl.naturalWidth || 0;
+          imgEl.classList.toggle("is-pixel-sprite", nw > 0 && nw <= 136);
+          imgEl.classList.toggle("offline-shiny-tint", !!cachedHit.isTint);
+        };
+        imgEl.onerror = function () {
+          if (imgEl.dataset.reqId !== reqId) return;
+          finishWithFallbackSvg(imgEl, pokemon, useShiny, reqId, isBattleImg);
+        };
+        imgEl.dataset.usingFallback = "0";
+        imgEl.classList.toggle("offline-shiny-tint", !!cachedHit.isTint);
+        imgEl.src = cachedHit.url;
+        if (imgEl.dataset.savedAlt !== undefined) imgEl.alt = imgEl.dataset.savedAlt;
+        if (isBattleImg) setBattleSpinnerVisible(false);
+        return;
       }
-    }
 
-    function tryNext() {
-      if (imgEl.dataset.reqId !== reqId) {
+      // 2순위: 현재 완전 오프라인(비행기 모드)이고 아직 캐시에 없는 번호라면 서킷 브레이커 오염 없이 즉시 폴백 표시
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        finishWithFallbackSvg(imgEl, pokemon, useShiny, reqId, isBattleImg);
+        return;
+      }
+
+      if (
+        (netState.consecutiveTotalFailures >= 6 || (netState.jsdelivr === "blocked" && netState.rawGitHub === "blocked" && fetchBridgeFailures >= 3)) &&
+        netState.rawGitHub !== "ok" &&
+        netState.jsdelivr !== "ok" &&
+        netState.pokeApi !== "ok"
+      ) {
+        finishWithFallbackSvg(imgEl, pokemon, useShiny, reqId, isBattleImg);
+        return;
+      }
+
+      var candidates = [];
+      if (window.HAS_LOCAL_SPRITES_FOLDER || window.location.protocol === "https:" || window.location.protocol === "http:") {
+        if (!useShiny && window.HAS_LOCAL_HD_SPRITES) {
+          pushUnique(candidates, "./sprites/home/" + pokemon.id + ".png");
+        }
+        if (window.HAS_LOCAL_SPRITES_FOLDER) {
+          pushUnique(candidates, "./sprites/" + (useShiny ? "shiny/" : "") + pokemon.id + ".png");
+        }
+      }
+      var extCands = buildPokemonImageCandidates(pokemon, !!useShiny);
+      for (var ec = 0; ec < extCands.length; ec++) pushUnique(candidates, extCands[ec]);
+      var b = getSpriteUrlBases();
+      pushUnique(candidates, b.compact + (useShiny ? "shiny/" : "") + pokemon.id + ".png");
+      var idx = 0;
+      var apiTried = false;
+      var watchdogId = null;
+
+      if (isBattleImg) setBattleSpinnerVisible(true);
+      if (!imgEl.dataset.savedAlt) imgEl.dataset.savedAlt = imgEl.alt || "";
+      imgEl.alt = "";
+
+      function clearWatchdog() {
+        if (watchdogId !== null) {
+          clearTimeout(watchdogId);
+          watchdogId = null;
+        }
+      }
+
+      function tryNext() {
+        if (imgEl.dataset.reqId !== reqId) {
+          clearWatchdog();
+          return;
+        }
         clearWatchdog();
-        return;
-      }
-      clearWatchdog();
 
-      if (idx < candidates.length) {
-        var nextUrl = candidates[idx++];
-        watchdogId = setTimeout(function () {
-          if (imgEl.dataset.reqId !== reqId) return;
-          tryNext();
-        }, 2200);
-        imgEl.src = nextUrl;
-        return;
-      }
+        if (idx < candidates.length) {
+          var nextUrl = candidates[idx++];
+          watchdogId = setTimeout(function () {
+            if (imgEl.dataset.reqId !== reqId) return;
+            tryNext();
+          }, 2200);
+          imgEl.src = nextUrl;
+          return;
+        }
 
-      if (!apiTried && netState.pokeApi !== "blocked") {
-        apiTried = true;
-        fetchPokeApiSpriteUrls(pokemon.id, function (apiEntry) {
-          if (imgEl.dataset.reqId !== reqId) return;
-          if (apiEntry) {
-            var extra = useShiny ? apiEntry.shiny : apiEntry.normal;
-            for (var j = 0; j < extra.length; j++) pushUnique(candidates, extra[j]);
-            if (idx < candidates.length) {
-              tryNext();
-              return;
+        if (!apiTried && netState.pokeApi !== "blocked") {
+          apiTried = true;
+          fetchPokeApiSpriteUrls(pokemon.id, function (apiEntry) {
+            if (imgEl.dataset.reqId !== reqId) return;
+            if (apiEntry) {
+              var extra = useShiny ? apiEntry.shiny : apiEntry.normal;
+              for (var j = 0; j < extra.length; j++) pushUnique(candidates, extra[j]);
+              if (idx < candidates.length) {
+                tryNext();
+                return;
+              }
+            }
+            netState.consecutiveTotalFailures += 1;
+            finishWithFallbackSvg(imgEl, pokemon, useShiny, reqId, isBattleImg);
+          });
+          return;
+        }
+
+        if (fetchBridgeFailures < 3 && typeof window.fetch === "function" && candidates.length > 0) {
+          var bridgeUrl = candidates[0];
+          for (var cIdx = 0; cIdx < candidates.length; cIdx++) {
+            if (candidates[cIdx].indexOf("cdn.jsdelivr.net") !== -1 || candidates[cIdx].indexOf("unpkg.com") !== -1) {
+              bridgeUrl = candidates[cIdx];
+              break;
             }
           }
-          netState.consecutiveTotalFailures += 1;
-          finishWithFallbackSvg(imgEl, pokemon, useShiny, reqId, isBattleImg);
-        });
-        return;
-      }
-
-      if (fetchBridgeFailures < 3 && typeof window.fetch === "function" && candidates.length > 0) {
-        var bridgeUrl = candidates[0];
-        for (var cIdx = 0; cIdx < candidates.length; cIdx++) {
-          if (candidates[cIdx].indexOf("cdn.jsdelivr.net") !== -1 || candidates[cIdx].indexOf("unpkg.com") !== -1) {
-            bridgeUrl = candidates[cIdx];
-            break;
-          }
+          fetchUrlAsDataUri(bridgeUrl, function (dataUri) {
+            if (imgEl.dataset.reqId !== reqId) return;
+            if (dataUri) {
+              DATA_URI_CACHE[cacheKey] = dataUri;
+              fetchBridgeFailures = 0;
+              netState.consecutiveTotalFailures = 0;
+              imgEl.dataset.usingFallback = "0";
+              imgEl.src = dataUri;
+              if (imgEl.dataset.savedAlt !== undefined) imgEl.alt = imgEl.dataset.savedAlt;
+              if (isBattleImg) setBattleSpinnerVisible(false);
+              return;
+            }
+            fetchBridgeFailures += 1;
+            netState.consecutiveTotalFailures += 1;
+            finishWithFallbackSvg(imgEl, pokemon, useShiny, reqId, isBattleImg);
+          });
+          return;
         }
-        fetchUrlAsDataUri(bridgeUrl, function (dataUri) {
-          if (imgEl.dataset.reqId !== reqId) return;
-          if (dataUri) {
-            DATA_URI_CACHE[cacheKey] = dataUri;
-            fetchBridgeFailures = 0;
-            netState.consecutiveTotalFailures = 0;
-            imgEl.dataset.usingFallback = "0";
-            imgEl.src = dataUri;
-            if (imgEl.dataset.savedAlt !== undefined) imgEl.alt = imgEl.dataset.savedAlt;
-            if (isBattleImg) setBattleSpinnerVisible(false);
-            return;
+
+        netState.consecutiveTotalFailures += 1;
+        finishWithFallbackSvg(imgEl, pokemon, useShiny, reqId, isBattleImg);
+      }
+
+      imgEl.onload = function () {
+        if (imgEl.dataset.reqId !== reqId) return;
+        clearWatchdog();
+        if (imgEl.dataset.savedAlt !== undefined) imgEl.alt = imgEl.dataset.savedAlt;
+        if (isBattleImg) setBattleSpinnerVisible(false);
+        if (imgEl.src.indexOf("data:image/svg+xml") !== 0) {
+          netState.consecutiveTotalFailures = 0;
+          if (imgEl.src.indexOf("jsdelivr.net") !== -1 || imgEl.src.indexOf("unpkg.com") !== -1) {
+            netState.jsdelivr = "ok";
+          } else if (imgEl.src.indexOf("raw.githubusercontent.com") !== -1) {
+            netState.rawGitHub = "ok";
           }
-          fetchBridgeFailures += 1;
-          netState.consecutiveTotalFailures += 1;
-          finishWithFallbackSvg(imgEl, pokemon, useShiny, reqId, isBattleImg);
-        });
-        return;
-      }
-
-      netState.consecutiveTotalFailures += 1;
-      finishWithFallbackSvg(imgEl, pokemon, useShiny, reqId, isBattleImg);
-    }
-
-    imgEl.onload = function () {
-      if (imgEl.dataset.reqId !== reqId) return;
-      clearWatchdog();
-      if (imgEl.dataset.savedAlt !== undefined) imgEl.alt = imgEl.dataset.savedAlt;
-      if (isBattleImg) setBattleSpinnerVisible(false);
-      if (imgEl.src.indexOf("data:image/svg+xml") !== 0) {
-        netState.consecutiveTotalFailures = 0;
-        if (imgEl.src.indexOf("jsdelivr.net") !== -1 || imgEl.src.indexOf("unpkg.com") !== -1) {
-          netState.jsdelivr = "ok";
-        } else if (imgEl.src.indexOf("raw.githubusercontent.com") !== -1) {
-          netState.rawGitHub = "ok";
+          var nw = imgEl.naturalWidth || 0;
+          var isSvg = imgEl.src.indexOf(".svg") !== -1;
+          imgEl.classList.toggle("is-pixel-sprite", !isSvg && nw > 0 && nw <= 136);
+          // 온라인에서 불러온 포켓몬 이미지는 영구 캐시에도 CORS 정식 사본으로 자동 저장!
+          var loadedTier = useShiny ? "shiny" : (imgEl.src.indexOf("/other/home/") !== -1 ? "hd" : "fast");
+          saveUrlToPokemonCacheSilently(imgEl.src, pokemon.id, loadedTier);
         }
-        var nw = imgEl.naturalWidth || 0;
-        var isSvg = imgEl.src.indexOf(".svg") !== -1;
-        imgEl.classList.toggle("is-pixel-sprite", !isSvg && nw > 0 && nw <= 136);
-      }
-    };
+      };
 
-    imgEl.onerror = function () {
-      if (imgEl.dataset.reqId !== reqId) return;
+      imgEl.onerror = function () {
+        if (imgEl.dataset.reqId !== reqId) return;
+        tryNext();
+      };
+
       tryNext();
-    };
-
-    tryNext();
+    });
   }
 
   function fetchUrlAsDataUri(targetUrl, cb) {
@@ -1405,6 +1764,28 @@
 
   function finishWithFallbackSvg(imgEl, pokemon, useShiny, reqId, isBattleImg) {
     if (imgEl.dataset.reqId !== reqId) return;
+    if (useShiny && canUseSpriteCacheStorage() && imgEl.dataset.triedNormalTint !== reqId) {
+      imgEl.dataset.triedNormalTint = reqId;
+      lookupCachedPokemonBlobUrl(pokemon, false, function (normHit) {
+        if (imgEl.dataset.reqId !== reqId) return;
+        if (normHit && normHit.url) {
+          imgEl.dataset.usingFallback = "0";
+          imgEl.classList.add("offline-shiny-tint");
+          imgEl.onload = function () {
+            if (imgEl.dataset.reqId !== reqId) return;
+            if (imgEl.dataset.savedAlt !== undefined) imgEl.alt = imgEl.dataset.savedAlt;
+            if (isBattleImg) setBattleSpinnerVisible(false);
+          };
+          imgEl.onerror = null;
+          imgEl.src = normHit.url;
+          if (imgEl.dataset.savedAlt !== undefined) imgEl.alt = imgEl.dataset.savedAlt;
+          if (isBattleImg) setBattleSpinnerVisible(false);
+          return;
+        }
+        finishWithFallbackSvg(imgEl, pokemon, false, reqId, isBattleImg);
+      });
+      return;
+    }
     imgEl.dataset.usingFallback = "1";
     imgEl.classList.remove("is-pixel-sprite");
     imgEl.onload = function () {
@@ -1810,6 +2191,8 @@
     var totalCaught = getCaughtCount();
     var totalDex = window.POKEMON_DATA.length;
     document.getElementById("title-dex-count").textContent = totalCaught + "/" + totalDex;
+    var tShiny = document.getElementById("btn-title-shiny");
+    if (tShiny) tShiny.textContent = state.shinyMode === "go" ? "✨ 이로치(GO급)" : (state.shinyMode === "classic" ? "✨ 이로치(원작)" : "✨ 이로치(아이)");
     document.getElementById("stamp-total-count").textContent = state.stamps.length + "개";
 
     var levelLabel = "정하기";
@@ -2197,7 +2580,8 @@
     if (state.screen === "level") renderLevelScreen();
   }
 
-  // 한자 아는 글자 50자 모달
+  var activeHanjaGradeTab = "all";
+
   function openKnownHanjaModal() {
     window.SoundFX.click();
     renderKnownHanjaGrid();
@@ -2205,7 +2589,21 @@
   }
 
   function renderKnownHanjaGrid() {
-    var list = window.HANJA_50_LIST || [];
+    var allList = window.HANJA_150_LIST || window.HANJA_50_LIST || [];
+    var list = activeHanjaGradeTab === "all"
+      ? allList
+      : allList.filter(function (it) { return it.grade === activeHanjaGradeTab; });
+
+    var headline = document.getElementById("hanja-modal-headline");
+    if (headline) {
+      headline.textContent = "漢 이미 아는 한자 고르기 (" + state.knownHanja.length + " / " + allList.length + "자 선택됨)";
+    }
+
+    var tabBtns = document.querySelectorAll(".hanja-grade-tab");
+    for (var t = 0; t < tabBtns.length; t++) {
+      tabBtns[t].classList.toggle("active", tabBtns[t].getAttribute("data-hgrade") === activeHanjaGradeTab);
+    }
+
     var grid = document.getElementById("hanja-known-grid");
     var html = "";
     for (var i = 0; i < list.length; i++) {
@@ -2213,6 +2611,7 @@
       var isKnown = state.knownHanja.indexOf(item.ch) !== -1;
       html +=
         '<button type="button" class="hanja-chip-btn' + (isKnown ? " known" : "") + '" data-ch="' + item.ch + '">' +
+        (item.grade ? ('<span class="hanja-chip-grade">' + item.grade + "</span>") : "") +
         '<span class="hanja-chip-big">' + item.ch + "</span>" +
         '<span class="hanja-chip-hun">' + item.hun + "</span>" +
         "</button>";
@@ -2379,8 +2778,10 @@
       var list = window.POKEMON_DATA.filter(function (p) { return p.region === rk; });
       var caughtInRegion = list.filter(function (p) { return isCaught(p.id); }).length;
 
+      var rBgMap = (window.THEME_ASSETS && window.THEME_ASSETS.regionBgs) || {};
+      var cardBgStyle = rBgMap[rk] ? ("background-image:url(" + rBgMap[rk] + ");background-size:cover;background-position:center;") : ("background:" + reg.bgGradient + ";");
       html +=
-        '<button type="button" class="region-card" data-region="' + rk + '" style="background:' + reg.bgGradient + '">' +
+        '<button type="button" class="region-card" data-region="' + rk + '" style="' + cardBgStyle + '">' +
         '<div class="region-card-top">' +
         '<span class="region-emoji">' + reg.emoji + "</span>" +
         '<span class="region-count-pill">잡은 수 ' + caughtInRegion + " / " + list.length + "</span>" +
@@ -2627,6 +3028,75 @@
     }
   }
 
+  function drawCoverImageOnCanvas(ctx, img, cw, ch) {
+    var iw = img.naturalWidth || img.width || 768;
+    var ih = img.naturalHeight || img.height || 768;
+    if (!iw || !ih) return false;
+    var scale = Math.max(cw / iw, ch / ih);
+    var sw = cw / scale;
+    var sh = ch / scale;
+    var sx = (iw - sw) * 0.5;
+    var sy = (ih - sh) * 0.5;
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
+    return true;
+  }
+
+  function drawAmbientRegionParticles(ctx, reg, w, h) {
+    var now = performance.now() * 0.001;
+    ctx.save();
+    for (var i = 0; i < 16; i++) {
+      var seed = (i + 1) * 97.31;
+      var baseX = ((seed * 37.7) % 1000) / 1000 * w;
+      var baseY = ((seed * 61.9) % 1000) / 1000 * h;
+      var driftX = Math.sin(now * 0.9 + i * 1.3) * 18;
+      var driftY = Math.cos(now * 0.7 + i * 0.9) * 14;
+      var px = (baseX + driftX + w) % w;
+      var py = (baseY + driftY + h) % h;
+      var alpha = 0.35 + 0.45 * (0.5 + 0.5 * Math.sin(now * 2.4 + i * 1.7));
+
+      if (reg === "forest") {
+        // 햇살 반딧불이 & 꽃잎 파티클
+        ctx.fillStyle = (i % 3 === 0)
+          ? ("rgba(255, 182, 193, " + alpha.toFixed(2) + ")")
+          : ("rgba(255, 249, 170, " + alpha.toFixed(2) + ")");
+        ctx.beginPath();
+        ctx.arc(px, py, (i % 3 === 0) ? 4.2 : 3.2, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (reg === "city") {
+        // 분수대·가로등 반짝이 스타 파티클
+        var r = 3.5 + (i % 2) * 1.5;
+        ctx.fillStyle = "rgba(255, 255, 255, " + (alpha * 0.95).toFixed(2) + ")";
+        ctx.beginPath();
+        ctx.moveTo(px, py - r);
+        ctx.lineTo(px + r * 0.38, py - r * 0.38);
+        ctx.lineTo(px + r, py);
+        ctx.lineTo(px + r * 0.38, py + r * 0.38);
+        ctx.lineTo(px, py + r);
+        ctx.lineTo(px - r * 0.38, py + r * 0.38);
+        ctx.lineTo(px - r, py);
+        ctx.lineTo(px - r * 0.38, py - r * 0.38);
+        ctx.closePath();
+        ctx.fill();
+      } else if (reg === "desert") {
+        // 오아시스 물빛 & 황금 모래 반짝이
+        ctx.fillStyle = (i % 4 === 0)
+          ? ("rgba(120, 240, 255, " + alpha.toFixed(2) + ")")
+          : ("rgba(255, 243, 176, " + alpha.toFixed(2) + ")");
+        ctx.beginPath();
+        ctx.arc(px, py, 3.0, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // 푸른 바다 물방울 & 윤슬 반짝이
+        ctx.strokeStyle = "rgba(255, 255, 255, " + (alpha * 0.9).toFixed(2) + ")";
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.arc(px, py, 3.5 + (i % 3) * 1.6, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
   function drawField() {
     var ctx = field.ctx;
     var w = field.width;
@@ -2634,101 +3104,43 @@
     var reg = state.regionId;
     ctx.clearRect(0, 0, w, h);
 
-    if (reg === "forest") {
-      var g1 = ctx.createLinearGradient(0, 0, 0, h);
-      g1.addColorStop(0, "#9be89f");
-      g1.addColorStop(1, "#51cf66");
-      ctx.fillStyle = g1;
-      ctx.fillRect(0, 0, w, h);
+    var bgImg = REGION_BG_IMAGES[reg];
+    var drewAnimeMap = false;
+    if (bgImg && bgImg.complete && (bgImg.naturalWidth || bgImg.width) > 0) {
+      drewAnimeMap = drawCoverImageOnCanvas(ctx, bgImg, w, h);
+    }
 
-      ctx.strokeStyle = "#e9fac8";
-      ctx.globalAlpha = 0.55;
-      ctx.lineWidth = 54;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(w * 0.12, h * 0.55);
-      ctx.quadraticCurveTo(w * 0.5, h * 0.35, w * 0.88, h * 0.62);
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-
-      for (var i = 0; i < field.scenery.length; i++) {
-        var s = field.scenery[i];
-        if (s.variant === 0) {
-          ctx.fillStyle = "#6d4c41";
-          ctx.fillRect(s.x - 6, s.y + 4, 12, 16);
-          ctx.fillStyle = "#2b8a3e";
-          ctx.beginPath();
-          ctx.arc(s.x, s.y - 4, 22, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.strokeStyle = "#1b2546";
-          ctx.lineWidth = 2.8;
-          ctx.stroke();
-        } else {
-          ctx.fillStyle = s.variant === 1 ? "#ffe066" : "#ff8787";
-          ctx.beginPath();
-          ctx.arc(s.x, s.y, 7, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = "#ffffff";
-          ctx.beginPath();
-          ctx.arc(s.x, s.y, 3, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-    } else if (reg === "city") {
-      ctx.fillStyle = "#dee2e6";
-      ctx.fillRect(0, 0, w, h);
-      ctx.strokeStyle = "rgba(255,255,255,0.65)";
-      ctx.lineWidth = 2;
-      for (var gx = 0; gx < w; gx += 64) {
-        ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, h); ctx.stroke();
-      }
-      for (var gy = 0; gy < h; gy += 64) {
-        ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke();
-      }
-      var bColors = ["#74c0fc", "#ffd43b", "#da77f2", "#63e6be", "#ffa8a8"];
-      for (var bi = 0; bi < 7; bi++) {
-        var bw = w / 7;
-        ctx.fillStyle = bColors[bi % bColors.length];
-        ctx.fillRect(bi * bw + 6, 0, bw - 12, 34);
-        ctx.strokeStyle = "#232538";
-        ctx.lineWidth = 2.5;
-        ctx.strokeRect(bi * bw + 6, 0, bw - 12, 34);
-      }
-    } else if (reg === "desert") {
-      var gd = ctx.createLinearGradient(0, 0, 0, h);
-      gd.addColorStop(0, "#ffe066");
-      gd.addColorStop(1, "#fcc419");
-      ctx.fillStyle = gd;
-      ctx.fillRect(0, 0, w, h);
-      for (var si = 0; si < field.scenery.length; si++) {
-        var ds = field.scenery[si];
-        if (ds.variant === 0) {
-          ctx.fillStyle = "#40c057";
-          ctx.strokeStyle = "#232538";
-          ctx.lineWidth = 2.5;
-          ctx.beginPath();
-          ctx.roundRect(ds.x - 6, ds.y - 20, 12, 34, 6);
-          ctx.fill();
-          ctx.stroke();
-        }
-      }
-    } else {
-      var gs = ctx.createLinearGradient(0, 0, 0, h);
-      gs.addColorStop(0, "#4dabf7");
-      gs.addColorStop(0.72, "#74c0fc");
-      gs.addColorStop(1, "#fff3bf");
-      ctx.fillStyle = gs;
+    if (!drewAnimeMap) {
+      var fallbackColors = {
+        forest: ["#9be89f", "#51cf66"],
+        city: ["#e7f5ff", "#a5d8ff"],
+        desert: ["#ffe066", "#fcc419"],
+        sea: ["#4dabf7", "#fff3bf"]
+      };
+      var pair = fallbackColors[reg] || fallbackColors.forest;
+      var g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, pair[0]);
+      g.addColorStop(1, pair[1]);
+      ctx.fillStyle = g;
       ctx.fillRect(0, 0, w, h);
     }
 
+    // 생동감 있는 애니메이션 환경 파티클(꽃잎·윤슬·분수 반짝이·오아시스 빛망울)
+    drawAmbientRegionParticles(ctx, reg, w, h);
+
     var p = field.player;
     if (p.targetX !== null && p.targetY !== null) {
-      var pulse = 12 + Math.sin(performance.now() / 130) * 4;
+      var pulse = 13 + Math.sin(performance.now() / 130) * 4;
       ctx.save();
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
+      ctx.lineWidth = 3.5;
       ctx.beginPath();
       ctx.arc(p.targetX, p.targetY, pulse, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(35, 37, 56, 0.55)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(p.targetX, p.targetY, pulse + 2.5, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }
@@ -3162,6 +3574,7 @@
     battle.isShiny = !!isShiny;
     battle.pokemon = poke;
     battle.hearts = 3;
+    battle.wrongCount = 0;
     battle.stage = "silhouette";
     battle.currentChoiceList = nameChoices;
     battle.currentAnswer = poke.name;
@@ -3178,12 +3591,28 @@
     renderBattleView();
   }
 
+  function getBattleCatchRate() {
+    var wrongs = Number(battle.wrongCount || 0);
+    if (battle.hearts >= 3 && wrongs === 0) return 1.0;
+    if (battle.hearts === 2 && wrongs <= 1) return 0.80;
+    return 0.50;
+  }
+
   function renderHearts() {
     var html = "";
     for (var i = 0; i < 3; i++) {
       html += '<span class="heart-icon">' + (i < battle.hearts ? "❤️" : "🤍") + "</span>";
     }
     document.getElementById("battle-hearts").innerHTML = html;
+
+    var ratePill = document.getElementById("battle-catch-rate-pill");
+    if (ratePill) {
+      var rate = getBattleCatchRate();
+      var pct = Math.round(rate * 100);
+      ratePill.textContent = "🎯 포획 " + pct + "%";
+      ratePill.classList.remove("rate-100", "rate-80", "rate-50");
+      ratePill.classList.add(pct === 100 ? "rate-100" : (pct === 80 ? "rate-80" : "rate-50"));
+    }
   }
 
   function formatBattlePokemonDisplayName() {
@@ -3388,6 +3817,7 @@
     } else {
       window.SoundFX.wrong();
       battle.hearts = Math.max(0, battle.hearts - 1);
+      battle.wrongCount = (battle.wrongCount || 0) + 1;
       renderHearts();
       if (!battle.hadWrongOnCurrentQuiz) {
         battle.hadWrongOnCurrentQuiz = true;
@@ -3952,6 +4382,7 @@
     } else {
       window.SoundFX.wrong();
       battle.hearts = Math.max(0, battle.hearts - 1);
+      battle.wrongCount = (battle.wrongCount || 0) + 1;
       battle.disabledIndices.push(idx);
       renderHearts();
 
@@ -4017,13 +4448,25 @@
     if (leftTools && leftTools.parentNode) leftTools.parentNode.removeChild(leftTools);
     updateTopBar();
 
-    document.getElementById("battle-stage-pill").textContent = "🔴 몬스터볼 던지기!";
+    var catchRate = getBattleCatchRate();
+    var catchPct = Math.round(catchRate * 100);
+    var catchSucceeded = true;
+    if (typeof state.forceNextCatchRoll === "boolean") {
+      catchSucceeded = state.forceNextCatchRoll;
+      state.forceNextCatchRoll = null;
+    } else if (catchRate < 1.0) {
+      catchSucceeded = Math.random() < catchRate;
+    }
+
+    document.getElementById("battle-stage-pill").textContent = "🔴 몬스터볼 던지기! (포획률 " + catchPct + "%)";
     document.getElementById("battle-quiz-panel").classList.add("hidden");
 
     var resultBox = document.getElementById("battle-result-box");
     resultBox.classList.remove("hidden");
-    document.getElementById("result-headline").textContent = "몬스터볼을 던졌어요! 얍!";
-    document.getElementById("result-subtext").textContent = "조금만 기다려 보세요...";
+    document.getElementById("result-headline").textContent = "몬스터볼을 던졌어요! 얍! (성공 확률 " + catchPct + "%)";
+    document.getElementById("result-subtext").textContent = catchPct === 100
+      ? "한 번도 틀리지 않아서 100% 확률로 잡혀요!"
+      : ("두근두근... " + catchPct + "% 확률로 포획에 도전 중이에요!");
     document.getElementById("btn-battle-finish").classList.add("hidden");
     document.getElementById("btn-result-open-3d").classList.add("hidden");
 
@@ -4043,27 +4486,71 @@
 
     scheduleBattleTimer(function () {
       battle.stage = "result";
+
+      // ★ 80% 또는 50% 구간에서 포획 확률 주사위가 빗나간 경우: 볼에서 펑! 빠져나감 (학습 사탕은 보존!)
+      if (!catchSucceeded) {
+        window.SoundFX.flee();
+        throwBallEl.className = "throw-ball" + ballVariant;
+        imgEl.classList.remove("captured-shrink");
+        imgEl.classList.add("flee-anim");
+        saveState();
+
+        document.getElementById("battle-stage-pill").textContent = "💨 볼에서 탈출! (" + catchPct + "% 아쉬워요)";
+        document.getElementById("result-headline").textContent =
+          "앗! 아깝다! " + battle.pokemon.name + "이(가) 몬스터볼에서 빠져나갔어요!";
+        document.getElementById("result-subtext").textContent =
+          "이번 포획 확률은 " + catchPct + "%였어요. 다음엔 문제를 한 번에 맞혀 100% 확률로 꼭 잡아 보자!";
+
+        var failRewardBox = document.getElementById("result-reward-pills");
+        if (failRewardBox) {
+          var studyChips = "";
+          if (state.lastBattleCandyGain > 0) {
+            studyChips += '<span class="reward-chip">🍬 문제 풀이 사탕 +' + state.lastBattleCandyGain + " (보유 " + state.evoCandy + ")</span>";
+          }
+          if (state.lastBattleStoneGain > 0) {
+            studyChips += '<span class="reward-chip">💎 진화의 돌 +' + state.lastBattleStoneGain + "!</span>";
+          }
+          failRewardBox.innerHTML = studyChips;
+        }
+        if (isCaught(battle.pokemon.id)) {
+          document.getElementById("btn-result-open-3d").classList.remove("hidden");
+        } else {
+          document.getElementById("btn-result-open-3d").classList.add("hidden");
+        }
+        document.getElementById("btn-battle-finish").classList.remove("hidden");
+        updateTopBar();
+        return;
+      }
+
       var pid = String(battle.pokemon.id);
       var prev = state.caught[pid];
       var isFirstTime = !prev;
       var isFirstShiny = battle.isShiny && !(prev && prev.shiny);
-      var isPerfect = battle.hearts === 3;
+      var isPerfect = catchPct === 100;
 
       if (!prev) {
         state.caught[pid] = {
+          registered: true,
           count: 1,
+          owned: 1,
           shiny: !!battle.isShiny,
           shinyCount: battle.isShiny ? 1 : 0,
+          shinyOwned: battle.isShiny ? 1 : 0,
           perfectCount: isPerfect ? 1 : 0,
           firstDate: getTodayLocalStr()
         };
       } else {
-        prev.count = (prev.count || 1) + 1;
-        if (isPerfect) prev.perfectCount = (prev.perfectCount || 0) + 1;
+        var normPrev = normalizeDexEntry(prev);
+        normPrev.registered = true;
+        normPrev.count += 1;
+        normPrev.owned += 1;
+        if (isPerfect) normPrev.perfectCount += 1;
         if (battle.isShiny) {
-          prev.shiny = true;
-          prev.shinyCount = (prev.shinyCount || 0) + 1;
+          normPrev.shiny = true;
+          normPrev.shinyCount += 1;
+          normPrev.shinyOwned += 1;
         }
+        state.caught[pid] = normPrev;
       }
 
       var catchBonusCandy = isPerfect ? 2 : 1;
@@ -4079,17 +4566,20 @@
       throwBallEl.className = "throw-ball" + ballVariant;
 
       document.getElementById("battle-stage-pill").textContent =
-        battle.isShiny ? "🌟 이로치 포획 성공!" : (isPerfect ? "🌟 원샷 퍼펙트 포획!" : "🎉 잡기 성공!");
+        battle.isShiny ? "🌟 이로치 포획 성공!" : (isPerfect ? "🌟 100% 퍼펙트 포획!" : ("🎉 " + catchPct + "% 포획 성공!"));
       document.getElementById("result-headline").textContent =
         battle.isShiny
           ? "🌟 우와! 색이 다른 " + battle.pokemon.name + " 잡았다!"
-          : "신난다! " + battle.pokemon.name + " 잡았다!";
+          : "신난다! " + battle.pokemon.name + " 잡았다! (" + catchPct + "% 성공)";
 
       var subMsg = isFirstShiny
-        ? "✨ 반짝이는 색이 다른 모습이 도감에 특별 등록되었어요!"
-        : (isFirstTime ? "✨ 새로운 포켓몬이 전국도감에 등록되었어요!" : "😊 도감에 이미 등록된 반가운 친구예요!");
+        ? "✨ 반짝이는 색이 다른 모습이 도감과 내 가방에 등록되었어요!"
+        : (isFirstTime
+          ? "✨ 전국도감 등록 완료! (현재 보유 1마리)"
+          : ("😊 내 포켓몬 가방에 1마리 더 들어왔어요! (현재 보유 " + getOwnedCount(battle.pokemon.id) + "마리)"));
       if (battle.isReview) subMsg += " 🌈 복습 완주 보상으로 다음 3번 배틀 이로치 확률 부스트!";
       document.getElementById("result-subtext").textContent = subMsg;
+
       var rewardBox = document.getElementById("result-reward-pills");
       if (rewardBox) {
         var rChips = '<span class="reward-chip">🍬 진화 사탕 +' + state.lastBattleCandyGain + " (보유 " + state.evoCandy + ")</span>";
@@ -4140,20 +4630,25 @@
   function renderPokedexScreen() {
     var allCnt = window.POKEMON_DATA.length;
     var caughtCnt = getCaughtCount();
+    var ownedSpeciesCnt = getOwnedSpeciesCount();
+    var totalOwnedCnt = getTotalOwnedIndividualsCount();
     var shinyCnt = getShinyCaughtCount();
     var evoCnt = getEvolvableCaughtCount();
 
     var btnAll = document.getElementById("filter-btn-all");
     var btnCaught = document.getElementById("filter-btn-caught");
+    var btnOwned = document.getElementById("filter-btn-owned");
     var btnEvo = document.getElementById("filter-btn-evolvable");
     var btnShiny = document.getElementById("filter-btn-shiny");
     btnAll.textContent = "전체 (" + allCnt + ")";
-    btnCaught.textContent = "잡은 포켓몬 (" + caughtCnt + ")";
+    btnCaught.textContent = "📖 도감 등록 (" + caughtCnt + ")";
+    if (btnOwned) btnOwned.textContent = "🎒 보유 포켓몬 (" + ownedSpeciesCnt + "종·" + totalOwnedCnt + "마리)";
     if (btnEvo) btnEvo.textContent = "🧬 진화 가능 (" + evoCnt + ")";
     btnShiny.textContent = "✨ 색이 다른 (" + shinyCnt + ")";
 
     btnAll.classList.toggle("active", state.pokedexFilter === "all");
     btnCaught.classList.toggle("active", state.pokedexFilter === "caught");
+    if (btnOwned) btnOwned.classList.toggle("active", state.pokedexFilter === "owned");
     if (btnEvo) btnEvo.classList.toggle("active", state.pokedexFilter === "evolvable");
     btnShiny.classList.toggle("active", state.pokedexFilter === "shiny");
 
@@ -4163,11 +4658,12 @@
     }
 
     document.getElementById("pokedex-progress-text").textContent =
-      "수집률: " + caughtCnt + " / " + allCnt + "마리" + (shinyCnt > 0 ? (" (✨이로치 " + shinyCnt + ")") : "");
+      "📖 도감 " + caughtCnt + "/" + allCnt + " · 🎒 보유 " + totalOwnedCnt + "마리" + (shinyCnt > 0 ? (" · ✨" + shinyCnt) : "");
 
     var list = window.POKEMON_DATA.filter(function (p) {
       if (state.pokedexGen > 0 && p.gen !== state.pokedexGen) return false;
       if (state.pokedexFilter === "caught") return isCaught(p.id);
+      if (state.pokedexFilter === "owned") return isOwned(p.id);
       if (state.pokedexFilter === "evolvable") return canPokemonEvolveNow(p.id);
       if (state.pokedexFilter === "shiny") return isShinyCaught(p.id);
       return true;
@@ -4200,19 +4696,27 @@
     for (var i = start; i < end; i++) {
       var p = list[i];
       var caught = isCaught(p.id);
+      var ownedCnt = getOwnedCount(p.id);
       var shiny = isShinyCaught(p.id);
       var card = document.createElement("div");
-      card.className = "dex-card " + (caught ? "caught" : "uncaught") + (shiny ? " shiny-caught" : "");
+      card.className = "dex-card " + (caught ? "caught" : "uncaught") +
+        (caught && ownedCnt === 0 ? " registered-zero-owned" : "") +
+        (shiny ? " shiny-caught" : "");
       card.setAttribute("data-pid", String(p.id));
 
       var inner = "";
-      if (caught && canPokemonEvolveNow(p.id)) inner += '<span class="dex-evo-mark" title="진화 가능!">🧬</span>';
+      if (caught && canPokemonEvolveNow(p.id)) inner += '<span class="dex-evo-mark" title="보유 개체 진화 가능!">🧬</span>';
       if (p.rare && caught) inner += '<span class="dex-rare-star">👑</span>';
       inner += '<span class="dex-num">' + padDexNum(p.id) + "</span>";
       if (shiny) inner += '<span class="dex-shiny-tag">✨ 색이 다른</span>';
       inner += '<img class="dex-img" loading="lazy" decoding="async" referrerpolicy="no-referrer" alt="' + (caught ? p.name : "미발견") + '"/>';
       inner += '<span class="dex-name">' + (caught ? p.name : "???") + "</span>";
-      if (caught) inner += '<div class="region-type-row">' + renderTypeBadgesHtml(p.types) + "</div>";
+      if (caught) {
+        inner += ownedCnt > 0
+          ? ('<span class="dex-owned-badge">🎒 보유 ' + ownedCnt + "마리</span>")
+          : '<span class="dex-owned-badge empty">📖 도감등록 (0마리)</span>';
+        inner += '<div class="region-type-row">' + renderTypeBadgesHtml(p.types) + "</div>";
+      }
       card.innerHTML = inner;
 
       applyPokemonImage(card.querySelector("img"), p, shiny);
@@ -4279,9 +4783,13 @@
     }
 
     // 진화 계통 트리 & 진화시키기 버튼 렌더링
+    var curOwned = getOwnedCount(poke.id);
+    var curShinyOwned = getShinyOwnedCount(poke.id);
     var evoBagEl = document.getElementById("modal-evo-bag");
     if (evoBagEl) {
-      evoBagEl.textContent = "보유: 🍬사탕 " + state.evoCandy + "개 · 💎진화의돌 " + state.evoStones + "개";
+      evoBagEl.textContent =
+        "🎒 현재 보유 " + curOwned + "마리" + (curShinyOwned > 0 ? ("(✨" + curShinyOwned + ")") : "") +
+        " · 🍬사탕 " + state.evoCandy + " · 💎돌 " + state.evoStones;
     }
     var chainWrap = document.getElementById("modal-evo-chain");
     var actionsWrap = document.getElementById("modal-evo-actions");
@@ -4332,22 +4840,32 @@
 
         var nextEvos = getNextEvolutions(poke.id);
         var aHtml = "";
-        for (var ei = 0; ei < nextEvos.length; ei++) {
-          var ev = nextEvos[ei];
-          var toPoke = POKEMON_BY_ID[ev.to];
-          if (!toPoke) continue;
-          var already = isCaught(toPoke.id);
-          var useStone = ev.stone > 0 && state.evoStones >= ev.stone;
-          var altCandy = ev.candy + (ev.stone > 0 ? 1 : 0);
-          var canDo = useStone || state.evoCandy >= altCandy;
-          var cleanNote = String(ev.label || "").replace(/^사탕\s*\d+개\s*/, "").replace(/^\(|\)$/g, "");
-          var costTxt = ev.stone > 0
-            ? (state.evoStones >= ev.stone ? ("💎진화의돌 1개 · " + ev.label) : ("🍬사탕 " + altCandy + "개 또는 💎1개"))
-            : ("🍬사탕 " + ev.candy + "개" + (cleanNote ? (" · " + cleanNote) : ""));
-          aHtml +=
-            '<button type="button" class="evo-trigger-btn" data-eidx="' + ei + '"' + (!canDo ? " disabled" : "") + ">" +
-            "✨ " + toPoke.name + "(으)로 진화시키기! · " + costTxt + (already ? " (보유)" : " (미등록!)") +
-            "</button>";
+        if (nextEvos.length > 0 && curOwned < 1) {
+          aHtml =
+            '<div class="evo-zero-owned-notice">' +
+            '🎒 현재 보유 중인 <strong>' + poke.name + '</strong>이(가) <strong>0마리</strong>예요 (도감에는 영구 등록됨).<br/>' +
+            '필드에서 <strong>' + poke.name + '</strong>을(를) 새로 잡으면 또 진화시킬 수 있어요!' +
+            "</div>";
+        } else {
+          for (var ei = 0; ei < nextEvos.length; ei++) {
+            var ev = nextEvos[ei];
+            var toPoke = POKEMON_BY_ID[ev.to];
+            if (!toPoke) continue;
+            var alreadyReg = isCaught(toPoke.id);
+            var toOwnedCnt = getOwnedCount(toPoke.id);
+            var useStone = ev.stone > 0 && state.evoStones >= ev.stone;
+            var altCandy = ev.candy + (ev.stone > 0 ? 1 : 0);
+            var canDo = curOwned >= 1 && (useStone || state.evoCandy >= altCandy);
+            var cleanNote = String(ev.label || "").replace(/^사탕\s*\d+개\s*/, "").replace(/^\(|\)$/g, "");
+            var costTxt = ev.stone > 0
+              ? (state.evoStones >= ev.stone ? ("💎진화의돌 1개 · " + ev.label) : ("🍬사탕 " + altCandy + "개 또는 💎1개"))
+              : ("🍬사탕 " + ev.candy + "개" + (cleanNote ? (" · " + cleanNote) : ""));
+            var statusNote = !alreadyReg ? " (도감 미등록!)" : (" (보유 " + toOwnedCnt + "마리)");
+            aHtml +=
+              '<button type="button" class="evo-trigger-btn" data-eidx="' + ei + '"' + (!canDo ? " disabled" : "") + ">" +
+              "✨ " + poke.name + " 1마리 ➡ " + toPoke.name + " 진화! · " + costTxt + statusNote +
+              "</button>";
+          }
         }
         actionsWrap.innerHTML = aHtml;
 
@@ -4375,6 +4893,14 @@
     var toPoke = POKEMON_BY_ID[evoSpec.to];
     if (!fromPoke || !toPoke) return;
 
+    var fromKey = String(fromPoke.id);
+    var fromRec = state.caught[fromKey] ? normalizeDexEntry(state.caught[fromKey]) : null;
+    if (!fromRec || fromRec.owned < 1) {
+      modalState.justEvolvedMsg = "🎒 현재 보유 중인 " + fromPoke.name + "이(가) 0마리예요! 야생에서 새로 잡아야 진화할 수 있어요.";
+      updateDexModalContent();
+      return;
+    }
+
     if (evoSpec.stone > 0 && state.evoStones >= evoSpec.stone) {
       state.evoStones -= evoSpec.stone;
     } else {
@@ -4383,24 +4909,48 @@
       state.evoCandy -= needCandy;
     }
 
-    var inheritShiny = isShinyCaught(fromPoke.id);
+    // ★ 진화 개체 소모: 보유 포켓몬 1마리를 실제로 차감하고(도감 등록 registered=true는 영구 유지!), 진화체 보유 +1!
+    var normalOwned = Math.max(0, fromRec.owned - fromRec.shinyOwned);
+    var evolvingShiny = false;
+    if (modalState.showingShiny && fromRec.shinyOwned >= 1) {
+      evolvingShiny = true;
+    } else if (normalOwned >= 1) {
+      evolvingShiny = false;
+    } else if (fromRec.shinyOwned >= 1) {
+      evolvingShiny = true;
+    }
+
+    fromRec.owned = Math.max(0, fromRec.owned - 1);
+    if (evolvingShiny) {
+      fromRec.shinyOwned = Math.max(0, fromRec.shinyOwned - 1);
+    }
+    fromRec.registered = true;
+    state.caught[fromKey] = fromRec;
+
     var pid = String(toPoke.id);
-    var prev = state.caught[pid];
+    var prev = state.caught[pid] ? normalizeDexEntry(state.caught[pid]) : null;
     if (!prev) {
       state.caught[pid] = {
+        registered: true,
         count: 1,
-        shiny: inheritShiny,
-        shinyCount: inheritShiny ? 1 : 0,
+        owned: 1,
+        shiny: evolvingShiny,
+        shinyCount: evolvingShiny ? 1 : 0,
+        shinyOwned: evolvingShiny ? 1 : 0,
         perfectCount: 1,
         evolvedFrom: fromPoke.id,
         firstDate: getTodayLocalStr()
       };
     } else {
-      prev.count = (prev.count || 1) + 1;
-      if (inheritShiny) {
+      prev.registered = true;
+      prev.count += 1;
+      prev.owned += 1;
+      if (evolvingShiny) {
         prev.shiny = true;
-        prev.shinyCount = (prev.shinyCount || 0) + 1;
+        prev.shinyCount += 1;
+        prev.shinyOwned += 1;
       }
+      state.caught[pid] = prev;
     }
     saveState();
 
@@ -4414,7 +4964,7 @@
 
     modalState.pokemon = toPoke;
     modalState.showingShiny = isShinyCaught(toPoke.id);
-    modalState.justEvolvedMsg = "🎉 오오! " + fromPoke.name + "이(가) " + toPoke.name + "(으)로 멋지게 진화했어요!";
+    modalState.justEvolvedMsg = "🎉 오오! " + fromPoke.name + " 1마리가 " + toPoke.name + "(으)로 진화했어요! (남은 " + fromPoke.name + " " + getOwnedCount(fromPoke.id) + "마리)";
     updateDexModalContent();
     updateTopBar();
     if (state.screen === "pokedex") renderPokedexScreen();
@@ -4454,6 +5004,8 @@
         if (window.SHINY_MODES[chosen]) {
           state.shinyMode = chosen;
           saveState();
+          if (state.screen === "title") renderTitleScreen();
+          updateTopBar();
           window.SoundFX.shinySparkle();
           openShinySettingsModal();
         }
@@ -4464,6 +5016,234 @@
 
   function closeShinySettingsModal() {
     document.getElementById("shiny-modal").classList.add("hidden");
+  }
+
+  var resetConfirmState = { progressArmed: false, allArmed: false };
+
+  function resetLearningProgressOnly() {
+    state.presetId = "starter";
+    state.subjectUnitIdx = { korean: 0, math: 0, english: 0, hanja: 0 };
+    state.creativeDiff = "easy";
+    state.subjectTiers = { korean: 2, math: 2, english: 2, creative: 2, hanja: 2 };
+    state.unitStatus = {};
+    state.knownHanja = [];
+    state.attempts = [];
+    state.reviewQueue = {};
+    state.typeMastery = {};
+    state.routineActive = false;
+    state.dailyRoutine = {
+      date: "",
+      altSubject: "english",
+      solved: { korean: 0, math: 0, english: 0, hanja: 0, creative: 0 },
+      rewarded: false
+    };
+    ensureTodayRoutine();
+    syncTiersFromUnits();
+    saveState();
+  }
+
+  function showSaveActionFeedback(msg) {
+    var box = document.getElementById("save-action-feedback");
+    if (!box) return;
+    box.textContent = msg;
+    box.classList.remove("hidden");
+  }
+
+  function syncSaveManageModalUI() {
+    var banner = document.getElementById("save-summary-banner");
+    if (banner) {
+      var doneUnits = Object.keys(state.unitStatus || {}).length;
+      banner.innerHTML =
+        "📖 도감 등록: <strong>" + getCaughtCount() + " / 1,025종</strong> · " +
+        "🎒 현재 보유: <strong>" + getTotalOwnedIndividualsCount() + "마리</strong> · " +
+        "🗓️ 출석 도장: <strong>" + state.stamps.length + "개</strong><br/>" +
+        "✅ 통과 단원: <strong>" + doneUnits + "개</strong> · " +
+        "📝 누적 풀이: <strong>" + state.attempts.length + "문항</strong> · " +
+        "🕒 마지막 저장: <strong>" + (state.lastSavedAt || "자동 저장됨") + "</strong>";
+    }
+    var btnProg = document.getElementById("btn-reset-progress-only");
+    if (btnProg) {
+      btnProg.classList.toggle("confirm-armed", resetConfirmState.progressArmed);
+      btnProg.textContent = resetConfirmState.progressArmed ? "⚠️ 한 번 더 누르면 삭제!" : "🧹 성취도만 삭제";
+    }
+    var btnAll = document.getElementById("btn-reset-all-everything");
+    if (btnAll) {
+      btnAll.classList.toggle("confirm-armed", resetConfirmState.allArmed);
+      btnAll.textContent = resetConfirmState.allArmed ? "⚠️ 정말 전체 삭제 확인!" : "🗑️ 전체 삭제";
+    }
+  }
+
+  function openSaveManageModal() {
+    window.SoundFX.click();
+    resetConfirmState.progressArmed = false;
+    resetConfirmState.allArmed = false;
+    var fb = document.getElementById("save-action-feedback");
+    if (fb) fb.classList.add("hidden");
+    syncSaveManageModalUI();
+    var m = document.getElementById("save-manage-modal");
+    if (m) m.classList.remove("hidden");
+  }
+
+  function closeSaveManageModal() {
+    resetConfirmState.progressArmed = false;
+    resetConfirmState.allArmed = false;
+    var m = document.getElementById("save-manage-modal");
+    if (m) m.classList.add("hidden");
+  }
+
+  function refreshCurrentScreenViews() {
+    updateTopBar();
+    if (state.screen === "title") renderTitleScreen();
+    else if (state.screen === "level") renderLevelScreen();
+    else if (state.screen === "progress") renderProgressScreen();
+    else if (state.screen === "pokedex") renderPokedexScreen();
+    else if (state.screen === "region") renderRegionScreen();
+  }
+
+  function initSaveManageEvents() {
+    var btnFromProg = document.getElementById("btn-progress-save-manage");
+    if (btnFromProg) btnFromProg.addEventListener("click", openSaveManageModal);
+
+    var btnClose = document.getElementById("btn-close-save-modal");
+    if (btnClose) btnClose.addEventListener("click", closeSaveManageModal);
+
+    var modalEl = document.getElementById("save-manage-modal");
+    if (modalEl) {
+      modalEl.addEventListener("click", function (e) {
+        if (e.target.id === "save-manage-modal") closeSaveManageModal();
+      });
+    }
+
+    var btnSaveNow = document.getElementById("btn-save-now-device");
+    if (btnSaveNow) {
+      btnSaveNow.addEventListener("click", function () {
+        saveState();
+        window.SoundFX.correct();
+        syncSaveManageModalUI();
+        showSaveActionFeedback("✅ 기기 저장소와 내장 DB 두 곳에 모두 안전하게 저장되었어요! (" + state.lastSavedAt + ")");
+      });
+    }
+
+    var btnExport = document.getElementById("btn-save-export-file");
+    if (btnExport) {
+      btnExport.addEventListener("click", function () {
+        saveState();
+        exportSaveDataAsJson();
+        showSaveActionFeedback("📤 백업 파일(.json)을 내려받았어요! 잘 보관해 두세요.");
+      });
+    }
+
+    var btnImport = document.getElementById("btn-save-import-file");
+    var fileInput = document.getElementById("input-import-save-file");
+    if (btnImport && fileInput) {
+      btnImport.addEventListener("click", function () {
+        fileInput.value = "";
+        fileInput.click();
+      });
+      fileInput.addEventListener("change", function () {
+        var f = fileInput.files && fileInput.files[0];
+        if (!f) return;
+        var reader = new FileReader();
+        reader.onload = function () {
+          try {
+            var parsed = JSON.parse(String(reader.result || ""));
+            if (!parsed || typeof parsed !== "object") throw new Error("bad json");
+            applySavedPayload(parsed);
+            saveState();
+            window.SoundFX.evolveFanfare();
+            syncSaveManageModalUI();
+            refreshCurrentScreenViews();
+            showSaveActionFeedback("🎉 백업 파일 복원이 완료되었어요! (도감 " + getCaughtCount() + "종 복원)");
+          } catch (err) {
+            showSaveActionFeedback("⚠️ 올바른 세이브 백업 파일(.json)이 아니에요.");
+          }
+        };
+        reader.readAsText(f, "utf-8");
+      });
+    }
+
+    var btnResetProg = document.getElementById("btn-reset-progress-only");
+    if (btnResetProg) {
+      btnResetProg.addEventListener("click", function () {
+        resetConfirmState.allArmed = false;
+        if (!resetConfirmState.progressArmed) {
+          resetConfirmState.progressArmed = true;
+          syncSaveManageModalUI();
+          showSaveActionFeedback("⚠️ 포켓몬은 남기고 학습 성취도·오답 기록만 초기화할까요? 버튼을 한 번 더 누르면 실행됩니다.");
+          return;
+        }
+        resetConfirmState.progressArmed = false;
+        resetLearningProgressOnly();
+        window.SoundFX.click();
+        syncSaveManageModalUI();
+        refreshCurrentScreenViews();
+        showSaveActionFeedback("🧹 학습 성취도와 오답 노트가 깔끔하게 초기화되었어요! (잡은 포켓몬은 그대로 보존됨)");
+      });
+    }
+
+    var btnResetAll = document.getElementById("btn-reset-all-everything");
+    if (btnResetAll) {
+      btnResetAll.addEventListener("click", function () {
+        resetConfirmState.progressArmed = false;
+        if (!resetConfirmState.allArmed) {
+          resetConfirmState.allArmed = true;
+          syncSaveManageModalUI();
+          showSaveActionFeedback("⚠️ 도감·보유 포켓몬·성취도를 정말 모두 삭제할까요? 버튼을 한 번 더 누르면 완전히 초기화됩니다.");
+          return;
+        }
+        resetConfirmState.allArmed = false;
+        resetSaveData();
+        checkAttendanceToday();
+        saveState();
+        window.SoundFX.click();
+        syncSaveManageModalUI();
+        refreshCurrentScreenViews();
+        showSaveActionFeedback("🗑️ 모든 진행 기록과 도감이 처음 상태로 완전히 초기화되었어요.");
+      });
+    }
+
+    // Bind new #filter-btn-owned tab in Pokedex!
+    var btnOwnedFilter = document.getElementById("filter-btn-owned");
+    if (btnOwnedFilter) {
+      btnOwnedFilter.addEventListener("click", function () {
+        window.SoundFX.click();
+        state.pokedexFilter = "owned";
+        renderPokedexScreen();
+      });
+    }
+
+    // Bind 150-Hanja grade tabs & bulk toggle!
+    var hTabs = document.querySelectorAll(".hanja-grade-tab");
+    for (var ht = 0; ht < hTabs.length; ht++) {
+      hTabs[ht].addEventListener("click", function () {
+        activeHanjaGradeTab = this.getAttribute("data-hgrade") || "all";
+        window.SoundFX.click();
+        renderKnownHanjaGrid();
+      });
+    }
+    var btnHanjaBulk = document.getElementById("btn-hanja-bulk-toggle");
+    if (btnHanjaBulk) {
+      btnHanjaBulk.addEventListener("click", function () {
+        var allList = window.HANJA_150_LIST || window.HANJA_50_LIST || [];
+        var sub = activeHanjaGradeTab === "all"
+          ? allList
+          : allList.filter(function (it) { return it.grade === activeHanjaGradeTab; });
+        var allSelected = sub.length > 0 && sub.every(function (it) { return state.knownHanja.indexOf(it.ch) !== -1; });
+        for (var k = 0; k < sub.length; k++) {
+          var ch = sub[k].ch;
+          var pos = state.knownHanja.indexOf(ch);
+          if (allSelected) {
+            if (pos !== -1) state.knownHanja.splice(pos, 1);
+          } else {
+            if (pos === -1) state.knownHanja.push(ch);
+          }
+        }
+        saveState();
+        window.SoundFX.click();
+        renderKnownHanjaGrid();
+        if (state.screen === "level") renderLevelScreen();
+      });
+    }
   }
 
   function exportSaveDataAsJson() {
@@ -4558,6 +5338,7 @@
       btnClosePwaModal.addEventListener("click", function () {
         window.SoundFX.click();
         closePwaInstallModal();
+        closeOfflinePackModal();
       });
     }
     var pwaModalBackdrop = document.getElementById("pwa-install-modal");
@@ -4662,10 +5443,7 @@
       window.SoundFX.click();
       renderLevelScreen();
     });
-    document.getElementById("btn-export-json").addEventListener("click", function () {
-      window.SoundFX.click();
-      exportSaveDataAsJson();
-    });
+    document.getElementById("btn-export-json").addEventListener("click", openSaveManageModal);
 
     // 과목별 확인 문제 모달 & 아는 한자 모달 & 성취도 단원 클릭 모달
     document.getElementById("btn-close-check-modal").addEventListener("click", function () {
@@ -5004,6 +5782,381 @@
     }
   }
 
+  function recalcOfflinePackCounts() {
+    offlinePackState.fastCount = Object.keys(offlinePackState.fastSet).length;
+    offlinePackState.hdCount = Object.keys(offlinePackState.hdSet).length;
+    offlinePackState.shinyCount = Object.keys(offlinePackState.shinySet).length;
+  }
+
+  function markSpriteCachedInMemory(pokeId, tier) {
+    var idNum = Number(pokeId);
+    if (!(idNum >= 1 && idNum <= 1025)) return;
+    if (tier === "hd") {
+      offlinePackState.hdSet[idNum] = true;
+      offlinePackState.fastSet[idNum] = true;
+    } else if (tier === "shiny") {
+      offlinePackState.shinySet[idNum] = true;
+    } else {
+      offlinePackState.fastSet[idNum] = true;
+    }
+    recalcOfflinePackCounts();
+    syncOfflinePackUI();
+  }
+
+  function auditOfflineSpriteCache(doneCb) {
+    offlinePackState.supported = canUseSpriteCacheStorage();
+    if (!offlinePackState.supported) {
+      syncOfflinePackUI();
+      if (doneCb) doneCb(offlinePackState);
+      return;
+    }
+    window.caches.open(POKE_SPRITE_CACHE_NAME).then(function (cache) {
+      return cache.keys();
+    }).then(function (requests) {
+      var fastMap = {};
+      var hdMap = {};
+      var shinyMap = {};
+      for (var i = 0; i < requests.length; i++) {
+        var u = requests[i].url || "";
+        var mShinyHome = u.match(/\/other\/home\/shiny\/(\d+)\.png/);
+        var mShinyComp = u.match(/\/sprites\/pokemon\/shiny\/(\d+)\.png/);
+        var mHome = u.match(/\/other\/(?:home|official-artwork)\/(\d+)\.png/);
+        var mComp = u.match(/\/sprites\/pokemon\/(\d+)\.png/);
+        var mMockShiny = u.match(/\/mock-sprites\/shiny\/(\d+)\.png/);
+        var mMockHome = u.match(/\/mock-sprites\/home\/(\d+)\.png/);
+        var mMockFast = u.match(/\/mock-sprites\/fast\/(\d+)\.png/);
+
+        if (mShinyHome || mShinyComp || mMockShiny) {
+          var sid = Number((mShinyHome || mShinyComp || mMockShiny)[1]);
+          if (sid >= 1 && sid <= 1025) shinyMap[sid] = true;
+        } else if (mHome || mMockHome) {
+          var hid = Number((mHome || mMockHome)[1]);
+          if (hid >= 1 && hid <= 1025) {
+            hdMap[hid] = true;
+            fastMap[hid] = true;
+          }
+        } else if (mComp || mMockFast) {
+          var cid = Number((mComp || mMockFast)[1]);
+          if (cid >= 1 && cid <= 1025) fastMap[cid] = true;
+        }
+      }
+      offlinePackState.fastSet = fastMap;
+      offlinePackState.hdSet = hdMap;
+      offlinePackState.shinySet = shinyMap;
+      offlinePackState.audited = true;
+      recalcOfflinePackCounts();
+      syncOfflinePackUI();
+      if (doneCb) doneCb(offlinePackState);
+    }).catch(function () {
+      syncOfflinePackUI();
+      if (doneCb) doneCb(offlinePackState);
+    });
+  }
+
+  function syncOfflinePackUI() {
+    var total = window.POKEMON_DATA ? window.POKEMON_DATA.length : 1025;
+    var isOnline = !(typeof navigator !== "undefined" && navigator.onLine === false) || !!offlinePackState.downloadingTier || netState.jsdelivr === "ok" || netState.rawGitHub === "ok";
+    var fCnt = offlinePackState.fastCount;
+    var hCnt = offlinePackState.hdCount;
+    var sCnt = offlinePackState.shinyCount;
+
+    var pill = document.getElementById("btn-offline-pack");
+    if (pill) {
+      if (!offlinePackState.supported) {
+        pill.textContent = "📦 오프라인 안내";
+        pill.classList.remove("done");
+      } else if (offlinePackState.downloadingTier) {
+        var curCnt = offlinePackState.downloadingTier === "hd" ? hCnt : (offlinePackState.downloadingTier === "shiny" ? sCnt : fCnt);
+        var pct = Math.min(100, Math.floor((curCnt / total) * 100));
+        pill.textContent = "📥 도감 저장 " + pct + "%";
+        pill.classList.remove("done");
+      } else if (hCnt >= total) {
+        pill.textContent = "📦 3D도감 완료 ✅";
+        pill.classList.add("done");
+      } else if (fCnt >= total) {
+        pill.textContent = "📦 기본도감 완료 ✅";
+        pill.classList.add("done");
+      } else if (fCnt > 0) {
+        pill.textContent = "📦 오프라인 " + Math.floor((fCnt / total) * 100) + "%";
+        pill.classList.remove("done");
+      } else {
+        pill.textContent = "📦 오프라인 도감";
+        pill.classList.remove("done");
+      }
+    }
+
+    var netBadge = document.getElementById("offline-net-badge");
+    if (netBadge) {
+      netBadge.textContent = isOnline ? "🌐 온라인 연결됨" : "✈️ 오프라인(비행기 모드)";
+      netBadge.classList.toggle("online", isOnline);
+      netBadge.classList.toggle("offline", !isOnline);
+    }
+
+    var fastBar = document.getElementById("offline-fast-bar");
+    var hdBar = document.getElementById("offline-hd-bar");
+    var shinyBar = document.getElementById("offline-shiny-bar");
+    if (fastBar) fastBar.style.width = Math.min(100, (fCnt / total) * 100).toFixed(1) + "%";
+    if (hdBar) hdBar.style.width = Math.min(100, (hCnt / total) * 100).toFixed(1) + "%";
+    if (shinyBar) shinyBar.style.width = Math.min(100, (sCnt / total) * 100).toFixed(1) + "%";
+
+    var fastSt = document.getElementById("offline-fast-status");
+    var hdSt = document.getElementById("offline-hd-status");
+    var shinySt = document.getElementById("offline-shiny-status");
+    if (fastSt) {
+      fastSt.textContent = !offlinePackState.supported
+        ? "웹 주소(HTTPS · GitHub Pages)에서 열면 기기에 영구 저장할 수 있어요."
+        : (fCnt >= total
+          ? "✅ 전국도감 1,025마리 기본 실물 이미지 저장 완료! (비행기 모드 즉시 사용 가능)"
+          : (offlinePackState.downloadingTier === "fast"
+            ? "⚡ 기본 실물 도감 자동 내려받는 중... (" + fCnt + " / " + total + "마리)"
+            : "저장됨: " + fCnt + " / " + total + "마리"));
+    }
+    if (hdSt) {
+      hdSt.textContent = hCnt >= total
+        ? "✅ 전국도감 1,025마리 고화질 HOME 3D 일러스트 저장 완료!"
+        : (offlinePackState.downloadingTier === "hd"
+          ? "📥 고화질 HOME 3D 일러스트 내려받는 중... (" + hCnt + " / " + total + "마리)"
+          : "저장됨: " + hCnt + " / " + total + "마리 (남은 " + (total - hCnt) + "마리)");
+    }
+    if (shinySt) {
+      shinySt.textContent = sCnt >= total
+        ? "✅ 색이 다른(이로치) 1,025마리 고화질 일러스트 저장 완료!"
+        : (offlinePackState.downloadingTier === "shiny"
+          ? "✨ 이로치 고화질 일러스트 내려받는 중... (" + sCnt + " / " + total + "마리)"
+          : "저장됨: " + sCnt + " / " + total + "마리");
+    }
+
+    var btnFast = document.getElementById("btn-download-fast-pack");
+    var btnHd = document.getElementById("btn-download-hd-pack");
+    var btnShiny = document.getElementById("btn-download-shiny-pack");
+    var btnPause = document.getElementById("btn-pause-offline-dl");
+    var busy = !!offlinePackState.downloadingTier;
+
+    if (btnFast) {
+      btnFast.disabled = !offlinePackState.supported || busy || fCnt >= total;
+      btnFast.textContent = fCnt >= total ? "✅ 완료" : (offlinePackState.downloadingTier === "fast" ? "저장 중..." : "⚡ 지금 저장");
+    }
+    if (btnHd) {
+      btnHd.disabled = !offlinePackState.supported || busy || hCnt >= total;
+      btnHd.textContent = hCnt >= total ? "✅ 완료" : (offlinePackState.downloadingTier === "hd" ? "저장 중..." : "📥 고화질 전체 저장");
+    }
+    if (btnShiny) {
+      btnShiny.disabled = !offlinePackState.supported || busy || sCnt >= total;
+      btnShiny.textContent = sCnt >= total ? "✅ 완료" : (offlinePackState.downloadingTier === "shiny" ? "저장 중..." : "✨ 이로치 저장");
+    }
+    if (btnPause) {
+      btnPause.classList.toggle("hidden", !busy);
+    }
+  }
+
+  function requestPersistentStorageQuietly() {
+    try {
+      if (navigator.storage && typeof navigator.storage.persist === "function") {
+        navigator.storage.persist().catch(function () {});
+      }
+    } catch (e) {}
+  }
+
+  function downloadOfflineSpritePack(tier) {
+    var targetTier = tier || "fast";
+    if (!canUseSpriteCacheStorage()) return Promise.resolve(offlinePackState);
+
+    if (offlinePackState.downloadingTier) {
+      return Promise.resolve(offlinePackState);
+    }
+
+    requestPersistentStorageQuietly();
+    offlinePackState.downloadingTier = targetTier;
+    offlinePackState.cancelRequested = false;
+    syncOfflinePackUI();
+
+    var b = getSpriteUrlBases();
+    var allList = window.POKEMON_DATA || [];
+    var missingIds = [];
+    for (var i = 0; i < allList.length; i++) {
+      var pid = allList[i].id;
+      if (targetTier === "hd" && !offlinePackState.hdSet[pid]) missingIds.push(pid);
+      else if (targetTier === "shiny" && !offlinePackState.shinySet[pid]) missingIds.push(pid);
+      else if (targetTier === "fast" && !offlinePackState.fastSet[pid]) missingIds.push(pid);
+    }
+
+    if (missingIds.length === 0) {
+      offlinePackState.downloadingTier = "";
+      syncOfflinePackUI();
+      return Promise.resolve(offlinePackState);
+    }
+
+    var concurrency = targetTier === "fast" ? 12 : 14;
+    var cursor = 0;
+    var consecutiveErrors = 0;
+
+    return window.caches.open(POKE_SPRITE_CACHE_NAME).then(function (cache) {
+      function fetchOneSprite(pokeId) {
+        var primaryUrl = targetTier === "hd"
+          ? (b.home + pokeId + ".png")
+          : (targetTier === "shiny" ? (b.home + "shiny/" + pokeId + ".png") : (b.compact + pokeId + ".png"));
+        var backupUrl = targetTier === "hd"
+          ? (b.rawHome + pokeId + ".png")
+          : (targetTier === "shiny" ? (b.rawHome + "shiny/" + pokeId + ".png") : (b.home + pokeId + ".png"));
+
+        var req1 = new Request(primaryUrl, { mode: "cors", credentials: "omit" });
+        return window.fetch(req1).then(function (res) {
+          if (!res || res.status !== 200) throw new Error("primary miss");
+          consecutiveErrors = 0;
+          return cache.put(primaryUrl, res).then(function () {
+            if (targetTier === "hd") {
+              offlinePackState.hdSet[pokeId] = true;
+              offlinePackState.fastSet[pokeId] = true;
+            } else if (targetTier === "shiny") {
+              offlinePackState.shinySet[pokeId] = true;
+            } else {
+              offlinePackState.fastSet[pokeId] = true;
+            }
+          });
+        }).catch(function () {
+          var req2 = new Request(backupUrl, { mode: "cors", credentials: "omit" });
+          return window.fetch(req2).then(function (res2) {
+            if (res2 && res2.status === 200) {
+              consecutiveErrors = 0;
+              return cache.put(backupUrl, res2).then(function () {
+                if (targetTier === "hd") {
+                  offlinePackState.hdSet[pokeId] = true;
+                  offlinePackState.fastSet[pokeId] = true;
+                } else if (targetTier === "shiny") {
+                  offlinePackState.shinySet[pokeId] = true;
+                } else {
+                  offlinePackState.fastSet[pokeId] = true;
+                }
+              });
+            }
+            consecutiveErrors += 1;
+          }).catch(function () { consecutiveErrors += 1; });
+        });
+      }
+
+      function workerLoop() {
+        if (offlinePackState.cancelRequested) return Promise.resolve();
+        if (consecutiveErrors >= 24) return Promise.resolve();
+        if (cursor >= missingIds.length) return Promise.resolve();
+        var nextId = missingIds[cursor++];
+        return fetchOneSprite(nextId).then(function () {
+          if (cursor % 10 === 0 || cursor === missingIds.length) {
+            recalcOfflinePackCounts();
+            syncOfflinePackUI();
+            upgradeFallbackImagesInDom();
+          }
+          return workerLoop();
+        });
+      }
+
+      var workers = [];
+      var wCount = Math.min(concurrency, missingIds.length);
+      for (var w = 0; w < wCount; w++) {
+        workers.push(workerLoop());
+      }
+      return Promise.all(workers);
+    }).then(function () {
+      offlinePackState.downloadingTier = "";
+      recalcOfflinePackCounts();
+      syncOfflinePackUI();
+      upgradeFallbackImagesInDom();
+      return offlinePackState;
+    }).catch(function () {
+      offlinePackState.downloadingTier = "";
+      recalcOfflinePackCounts();
+      syncOfflinePackUI();
+      return offlinePackState;
+    });
+  }
+
+  function openOfflinePackModal() {
+    auditOfflineSpriteCache(function () {
+      syncOfflinePackUI();
+    });
+    var m = document.getElementById("offline-pack-modal");
+    if (m) m.classList.remove("hidden");
+  }
+
+  function closeOfflinePackModal() {
+    var m = document.getElementById("offline-pack-modal");
+    if (m) m.classList.add("hidden");
+  }
+
+  function initOfflineSpriteSystem() {
+    offlinePackState.supported = canUseSpriteCacheStorage();
+    syncOfflinePackUI();
+
+    var btnOpen = document.getElementById("btn-offline-pack");
+    if (btnOpen) btnOpen.addEventListener("click", openOfflinePackModal);
+
+    var btnFromPwa = document.getElementById("btn-open-offline-from-pwa");
+    if (btnFromPwa) {
+      btnFromPwa.addEventListener("click", function () {
+        closePwaInstallModal();
+        openOfflinePackModal();
+      });
+    }
+
+    var btnClose = document.getElementById("btn-close-offline-modal");
+    if (btnClose) btnClose.addEventListener("click", closeOfflinePackModal);
+
+    var btnFast = document.getElementById("btn-download-fast-pack");
+    if (btnFast) {
+      btnFast.addEventListener("click", function () {
+        downloadOfflineSpritePack("fast");
+      });
+    }
+
+    var btnHd = document.getElementById("btn-download-hd-pack");
+    if (btnHd) {
+      btnHd.addEventListener("click", function () {
+        downloadOfflineSpritePack("hd");
+      });
+    }
+
+    var btnShiny = document.getElementById("btn-download-shiny-pack");
+    if (btnShiny) {
+      btnShiny.addEventListener("click", function () {
+        downloadOfflineSpritePack("shiny");
+      });
+    }
+
+    var btnPause = document.getElementById("btn-pause-offline-dl");
+    if (btnPause) {
+      btnPause.addEventListener("click", function () {
+        offlinePackState.cancelRequested = true;
+      });
+    }
+
+    window.addEventListener("online", function () {
+      netState.jsdelivr = "unknown";
+      netState.rawGitHub = "unknown";
+      netState.pokeApi = "unknown";
+      netState.consecutiveTotalFailures = 0;
+      fetchBridgeFailures = 0;
+      syncOfflinePackUI();
+      upgradeFallbackImagesInDom();
+      if (offlinePackState.supported && offlinePackState.fastCount < 1025 && !offlinePackState.downloadingTier) {
+        downloadOfflineSpritePack("fast");
+      }
+    });
+
+    window.addEventListener("offline", function () {
+      syncOfflinePackUI();
+    });
+
+    // 앱 시작 1.2초 후 캐시 현황 점검 → 온라인(Wi-Fi)이고 기본 1,025마리가 아직 다 없으면 자동으로 백그라운드 저장 시작!
+    if (offlinePackState.supported && window.POKE_DISABLE_AUTO_PRELOAD !== true) {
+      setTimeout(function () {
+        auditOfflineSpriteCache(function (st) {
+          if (st.fastCount < 1025 && !st.downloadingTier) {
+            downloadOfflineSpritePack("fast");
+          }
+        });
+      }, 350);
+    }
+  }
+
   function initPwaSupport() {
     syncPwaInstallButtonUI();
 
@@ -5077,6 +6230,9 @@
     initImageProviders();
     bindEvents();
     initPwaSupport();
+    initOfflineSpriteSystem();
+    initSaveManageEvents();
+    restoreFromIndexedDbIfEmpty(function (restored) { if (restored) refreshCurrentScreenViews(); });
     if (!handleLaunchShortcutAction()) {
       showScreen("title");
     }
@@ -5124,6 +6280,38 @@
       if (pObj) openDexModal(pObj, false);
     },
     openRoutineModal: openRoutineModal,
+    openOfflinePackModal: openOfflinePackModal,
+    openSaveManageModal: openSaveManageModal,
+    resetLearningProgressOnly: resetLearningProgressOnly,
+    getOwnedCount: getOwnedCount,
+    getBattleCatchRate: getBattleCatchRate,
+    setForceNextCatchRoll: function (val) { state.forceNextCatchRoll = val; },
+    getShinyOwnedCount: getShinyOwnedCount,
+    downloadOfflineSpritePack: downloadOfflineSpritePack,
+    auditOfflineSpriteCache: auditOfflineSpriteCache,
+    getOfflinePackStats: function () { return offlinePackState; },
+    startTestBattleWithPokemon: function (pokeId, isShiny) {
+      var pObj = POKEMON_BY_ID[Number(pokeId)] || window.POKEMON_DATA[0];
+      state.regionId = pObj.region || 'city';
+      battle.active = true;
+      battle.isGold = false;
+      battle.isReview = false;
+      battle.isShiny = !!isShiny;
+      battle.pokemon = pObj;
+      battle.hearts = 3;
+      battle.wrongCount = 0;
+      battle.stage = 'quiz';
+      battle.quizzes = pickLearningQuizzes(2, pObj, false);
+      battle.quizIndex = 0;
+      battle.hadWrongOnCurrentQuiz = false;
+      battle.locked = false;
+      showScreen('battle');
+      renderBattleView();
+      document.getElementById('battle-pokemon-img').classList.remove('is-silhouette');
+      document.getElementById('battle-pokemon-name').textContent = formatBattlePokemonDisplayName();
+      document.getElementById('battle-pokemon-types').innerHTML = renderTypeBadgesHtml(pObj.types);
+      startQuizQuestion(0);
+    },
     getPwaState: function () {
       return {
         swRegistrationState: swRegistrationState,
