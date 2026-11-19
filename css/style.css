@@ -4157,3 +4157,4 @@ img.offline-shiny-tint:not(.is-wild-silhouette) {
 .question-text { white-space: pre-line; }
 .question-text.has-picture-line::first-line { font-size: 2.1em; line-height: 1.25; }
 .choice-btn.picture-choice .choice-label { font-size: 1.9em; line-height: 1.1; letter-spacing: 1px; }
+.choice-label .move-choice-svg { width: 1.45em; height: 1.45em; display: block; }

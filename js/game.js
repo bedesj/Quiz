@@ -4586,6 +4586,14 @@
     };
   }
 
+  // 평면도형의 이동: 보기의 글자 화살표(↑ → ↓ ←)를 문제 그림과 같은 모양의 화살표 그림으로 바꾼다
+  function moveChoiceSvg(quizObj, choice) {
+    var deg = { "↑": 0, "→": 90, "↓": 180, "←": 270 }[String(choice)];
+    if (!quizObj || quizObj.unit !== "mg4" || !isMathQuiz(quizObj) || deg === undefined) return null;
+    return '<svg class="move-choice-svg" viewBox="-36 -36 72 72" role="img" aria-label="' + escapeHtmlText(choice) + '"><rect x="-34" y="-34" width="68" height="68" rx="6" fill="#fbfcff" stroke="#c9cfdd" stroke-width="2"/>' +
+      '<polygon transform="rotate(' + deg + ')" points="0,-27 20,-4 8,-4 8,25 -8,25 -8,-4 -20,-4" fill="#8ec5ff" stroke="#232538" stroke-width="3" stroke-linejoin="round"/></svg>';
+  }
+
   // ---------------- 4학년 평면도형의 이동 (밀기·뒤집기·돌리기) ----------------
   // 처음 모양, 움직이는 방법, 결과 자리("?")를 그림으로 보여 준다. 그릴 수 없으면 null.
   function buildAutoMove(quizObj, questionText) {
@@ -4812,7 +4820,8 @@
     var btns = grid.querySelectorAll(".choice-btn");
     for (var b = 0; b < btns.length; b++) {
       var cMathHtml = isMathQuiz(quizObj) ? formatMathHtml(choices[b]) : null;
-      if (cMathHtml) btns[b].querySelector(".choice-label").innerHTML = cMathHtml; else btns[b].querySelector(".choice-label").textContent = choices[b];
+      var cMoveSvg = moveChoiceSvg(quizObj, choices[b]);
+      if (cMoveSvg) btns[b].querySelector(".choice-label").innerHTML = cMoveSvg; else if (cMathHtml) btns[b].querySelector(".choice-label").innerHTML = cMathHtml; else btns[b].querySelector(".choice-label").textContent = choices[b];
       // 글자 없이 그림만 있는 보기는 크게 보여 준다
       btns[b].classList.toggle("picture-choice", !/[0-9A-Za-z가-힣ㄱ-ㅎㅏ-ㅣ]/.test(String(choices[b])));
       btns[b].addEventListener("click", function () {
