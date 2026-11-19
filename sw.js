@@ -1,10 +1,10 @@
-// 포켓몬 퀴즈 대모험 — 완전 오프라인 구동 대응 PWA Service Worker v8
+// 포켓몬 퀴즈 대모험 — 완전 오프라인 구동 대응 PWA Service Worker v9
 // 3) 앱 파일(index.html·js·css·data)은 인터넷이 되면 항상 새 파일을 먼저 받고, 안 될 때만 저장해 둔 파일을 쓴다
 // 1) 로컬 ./sprites/ 폴더에 사전 다운로드된 1,025마리 도감 이미지 최우선 캐시·서빙
 // 2) POKE_SPRITE_CACHE ('poke-sprites-v1') 영구 보관함 보존
-const SHELL_CACHE = "poke-quiz-shell-v8";
+const SHELL_CACHE = "poke-quiz-shell-v9";
 const POKE_SPRITE_CACHE = "poke-sprites-v1";
-const RUNTIME_CACHE = "poke-quiz-runtime-v8";
+const RUNTIME_CACHE = "poke-quiz-runtime-v9";
 const MAX_RUNTIME_ITEMS = 400;
 const NETWORK_WAIT_MS = 6000;   // 이 시간 안에 새 파일이 안 오면 저장해 둔 파일로 먼저 연다
 
@@ -19,6 +19,7 @@ const APP_SHELL_FILES = [
   "./data/questions.js",
   "./data/questions_stages.js",
   "./data/questions_g1b.js",
+  "./data/questions_g2.js",
   "./data/visual_templates.js",
   "./data/hanja_strokes.js",
   "./js/audio.js",
