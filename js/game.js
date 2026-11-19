@@ -5874,7 +5874,6 @@
       window.SoundFX.click();
       renderLevelScreen();
     });
-    document.getElementById("btn-export-json").addEventListener("click", openSaveManageModal);
 
     // 과목별 확인 문제 모달 & 아는 한자 모달 & 성취도 단원 클릭 모달
     document.getElementById("btn-close-check-modal").addEventListener("click", function () {
