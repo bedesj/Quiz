@@ -2811,7 +2811,7 @@
           (window.GRADED_SUBJECTS || []).forEach(function (gk) {
             if (getSubjectStage(gk) !== "g1a") {
               var gLen = ((window.SUBJECT_UNITS || {})[gk] || []).length;
-              state.subjectUnitIdx[gk] = Math.max(0, Math.min(gLen - 1, pKeys.indexOf(chosen)));
+              state.subjectUnitIdx[gk] = Math.max(0, Math.round(pKeys.indexOf(chosen) * (gLen - 1) / 2));
             }
           });
           state.creativeDiff = d.creativeDiff;
