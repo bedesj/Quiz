@@ -1,10 +1,12 @@
-// 포켓몬 퀴즈 대모험 — 완전 오프라인 구동 대응 PWA Service Worker v5
+// 포켓몬 퀴즈 대모험 — 완전 오프라인 구동 대응 PWA Service Worker v6
+// 3) 앱 파일(index.html·js·css·data)은 인터넷이 되면 항상 새 파일을 먼저 받고, 안 될 때만 저장해 둔 파일을 쓴다
 // 1) 로컬 ./sprites/ 폴더에 사전 다운로드된 1,025마리 도감 이미지 최우선 캐시·서빙
 // 2) POKE_SPRITE_CACHE ('poke-sprites-v1') 영구 보관함 보존
-const SHELL_CACHE = "poke-quiz-shell-v5";
+const SHELL_CACHE = "poke-quiz-shell-v6";
 const POKE_SPRITE_CACHE = "poke-sprites-v1";
-const RUNTIME_CACHE = "poke-quiz-runtime-v5";
+const RUNTIME_CACHE = "poke-quiz-runtime-v6";
 const MAX_RUNTIME_ITEMS = 400;
+const NETWORK_WAIT_MS = 6000;   // 이 시간 안에 새 파일이 안 오면 저장해 둔 파일로 먼저 연다
 
 const APP_SHELL_FILES = [
   "./index.html",
@@ -76,6 +78,34 @@ self.addEventListener("message", function (event) {
   }
 });
 
+// 앱 파일: 새 파일 먼저(network-first). 오프라인이거나 너무 느리면 저장해 둔 파일로 대신한다.
+// 예전에는 저장해 둔 파일을 먼저 써서, 업데이트 직후 새 index.html 과 예전 game.js 가 섞여 화면이 깨졌다.
+function networkFirstShell(req, lookupTarget) {
+  return new Promise(function (resolve) {
+    var settled = false;
+    function fromCache() { return caches.match(lookupTarget, { ignoreSearch: true }); }
+    var timer = setTimeout(function () {
+      fromCache().then(function (cached) {
+        if (cached && !settled) { settled = true; resolve(cached); }
+      });
+    }, NETWORK_WAIT_MS);
+    fetch(req.url, { cache: "no-cache" }).then(function (netRes) {
+      if (netRes && netRes.status === 200) {
+        var clone = netRes.clone();
+        caches.open(SHELL_CACHE).then(function (cache) { cache.put(lookupTarget, clone); });
+      }
+      if (!settled) { settled = true; clearTimeout(timer); resolve(netRes); }
+    }).catch(function () {
+      clearTimeout(timer);
+      if (settled) return;
+      fromCache().then(function (cached) {
+        settled = true;
+        resolve(cached || new Response("", { status: 504, statusText: "Offline" }));
+      });
+    });
+  });
+}
+
 function trimCache(cacheName, maxItems) {
   caches.open(cacheName).then(function (cache) {
     cache.keys().then(function (keys) {
@@ -108,7 +138,7 @@ self.addEventListener("fetch", function (event) {
 
   if (req.mode === "navigate") {
     event.respondWith(
-      fetch(req).then(function (networkRes) {
+      fetch(req.url, { cache: "no-cache" }).then(function (networkRes) {
         if (networkRes && networkRes.status === 200) {
           var copy = networkRes.clone();
           caches.open(SHELL_CACHE).then(function (cache) { cache.put("./index.html", copy); });
@@ -146,20 +176,7 @@ self.addEventListener("fetch", function (event) {
 
   if (url.origin === self.location.origin) {
     var lookupTarget = url.pathname.endsWith("/") ? "./index.html" : req;
-    event.respondWith(
-      caches.match(lookupTarget, { ignoreSearch: true }).then(function (cached) {
-        var netFetch = fetch(req).then(function (netRes) {
-          if (netRes && netRes.status === 200) {
-            var clone = netRes.clone();
-            caches.open(SHELL_CACHE).then(function (cache) { cache.put(lookupTarget, clone); });
-          }
-          return netRes;
-        }).catch(function () {
-          return cached || new Response("", { status: 504, statusText: "Offline" });
-        });
-        return cached || netFetch;
-      })
-    );
+    event.respondWith(networkFirstShell(req, lookupTarget));
     return;
   }
 
