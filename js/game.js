@@ -4376,6 +4376,142 @@
   }
   // "[제목] 가 3명, 나 5명" 처럼 글로 적힌 자료를 단원에 맞는 그래프로 그린다. 그릴 수 없으면 null.
   var AUTO_CHART_UNITS = { mg5: "bar", mh5: "line", mk5: "band" };
+  // ---------------- 도형 그림 ----------------
+  // 문제 문장에 적힌 도형과 치수를 읽어 그림을 그린다. 그릴 수 없는 문제는 null. (치수의 비율은 보기 좋게 다듬어 그리므로 정확한 축척은 아니다)
+  function buildAutoShape(quizObj, questionText) {
+    if (!isMathQuiz(quizObj) || quizObj.svg) return null;
+    var q = String(questionText || ""), W = 340, H = 168, INK = "#232538", FILL = "#dbeeff", ACC = "#e8590c", m, body = "";
+    var f1 = function (v) { return (Math.round(v * 10) / 10).toString(); };
+    var T = function (x, y, t, o) { o = o || {}; return '<text x="' + f1(x) + '" y="' + f1(y) + '" text-anchor="' + (o.a || "middle") + '" font-size="' + (o.s || 12) + '" fill="' + (o.c || INK) + '">' + escapeHtmlText(t) + "</text>"; };
+    var P = function (pts, o) { o = o || {}; return '<polygon points="' + pts.map(function (p) { return f1(p[0]) + "," + f1(p[1]); }).join(" ") + '" fill="' + (o.f || FILL) + '" stroke="' + INK + '" stroke-width="2" stroke-linejoin="round"/>'; };
+    var L = function (a, b, o) { o = o || {}; return '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" stroke="' + (o.c || INK) + '" stroke-width="' + (o.w || 1.6) + '"' + (o.d ? ' stroke-dasharray="4 3"' : "") + ' stroke-linecap="round"/>'; };
+    var clampR = function (r, lo, hi) { return Math.max(lo, Math.min(hi, r)); };
+    // 점들을 주어진 상자 안에 비율을 지키며 맞춘다
+    var fit = function (pts, bx, by, bw, bh) {
+      var xs = pts.map(function (p) { return p[0]; }), ys = pts.map(function (p) { return p[1]; });
+      var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+      var k = Math.min(bw / Math.max(1, x1 - x0), bh / Math.max(1, y1 - y0));
+      var ox = bx + (bw - (x1 - x0) * k) / 2, oy = by + (bh - (y1 - y0) * k) / 2;
+      return pts.map(function (p) { return [ox + (p[0] - x0) * k, oy + (p[1] - y0) * k]; });
+    };
+    var regular = function (n, cx, cy, r) { var a = [], off = -Math.PI / 2 + (n % 2 === 0 ? Math.PI / n : 0); for (var i = 0; i < n; i++) a.push([cx + r * Math.cos(off + 2 * Math.PI * i / n), cy + r * Math.sin(off + 2 * Math.PI * i / n)]); return a; };
+    var NUM = { "삼": 3, "사": 4, "오": 5, "육": 6, "칠": 7, "팔": 8 };
+    var rightMark = function (x, y, sx, sy) { return '<path d="M' + f1(x + 8 * sx) + " " + f1(y) + " L" + f1(x + 8 * sx) + " " + f1(y + 8 * sy) + " L" + f1(x) + " " + f1(y + 8 * sy) + '" fill="none" stroke="' + INK + '" stroke-width="1.2"/>'; };
+    var pts, w, h, x, y;
+
+    if ((m = q.match(/가로 (\d+) (c?m), 세로 (\d+) c?m, 높이 (\d+) c?m인 직육면체/)) || (m = q.match(/부피가 \d+ cm³이고 가로 (\d+) (cm), 세로 (\d+) cm인 직육면체/)) || (m = q.match(/한 모서리의 길이가 (\d+) (cm)인 정육면체/))) {
+      // 직육면체·정육면체 (비스듬히 본 모양)
+      var isCube = /정육면체/.test(m[0]), a = Number(m[1]), b = isCube ? a : Number(m[3]), c = isCube ? a : (m[4] ? Number(m[4]) : 0), u = " " + m[2];
+      var mean = (a + b + (c || (a + b) / 2)) / 3, fw = 96 * clampR(a / mean, 0.7, 1.45), fh = 62 * clampR((c || mean) / mean, 0.7, 1.4), dd = 34 * clampR(b / mean, 0.7, 1.4);
+      var dx = dd, dy = -dd * 0.55, bx0 = (W - fw - dx) / 2, by0 = 40 - dy + (104 - fh + dy) / 2;
+      var A = [bx0, by0 + fh], B = [bx0 + fw, by0 + fh], C = [bx0 + fw, by0], D = [bx0, by0], A2 = [A[0] + dx, A[1] + dy], B2 = [B[0] + dx, B[1] + dy], C2 = [C[0] + dx, C[1] + dy], D2 = [D[0] + dx, D[1] + dy];
+      body += P([D, C, C2, D2], { f: "#eef7ff" }) + P([B, B2, C2, C], { f: "#c5e0fb" }) + P([A, B, C, D]) + L(A, A2, { d: 1, w: 1.2 }) + L(A2, B2, { d: 1, w: 1.2 }) + L(A2, D2, { d: 1, w: 1.2 });
+      body += T((A[0] + B[0]) / 2, A[1] + 15, a + u) + (isCube ? "" : T(B[0] + dx / 2 + 6, B[1] + dy / 2 + 12, b + u, { a: "start" }) + T(A[0] - 6, (A[1] + D[1]) / 2 + 4, c ? c + u : "?", { a: "end", c: c ? INK : ACC }));
+    } else if ((m = q.match(/가로(?:가)? (\d+) (c?m), 세로(?:가)? (\d+) c?m인 직사각형/)) || (m = q.match(/넓이가 (\d+) (cm)²이고 가로가 (\d+) cm인 직사각형/)) || (m = q.match(/한 변의 길이가 (\d+) (cm)인 정사각형/))) {
+      var kindR = /정사각형/.test(m[0]) ? "sq" : (/넓이가/.test(m[0]) ? "area" : "rect");
+      var ra = kindR === "area" ? Number(m[3]) : Number(m[1]), rb = kindR === "sq" ? ra : (kindR === "area" ? Number(m[1]) / Number(m[3]) : Number(m[3])), r = clampR(ra / rb, 0.5, 2.6);
+      w = 200; h = w / r; if (h > 96) { h = 96; w = h * r; }
+      x = (W - w) / 2; y = 30 + (100 - h) / 2;
+      body += P([[x, y], [x + w, y], [x + w, y + h], [x, y + h]]) + T(x + w / 2, y + h + 15, ra + " " + m[2]);
+      if (kindR !== "sq") body += T(x + w + 7, y + h / 2 + 4, kindR === "area" ? "?" : rb + " " + m[2], { a: "start", c: kindR === "area" ? ACC : INK });
+      if (kindR === "area") body += T(x + w / 2, y + h / 2 + 4, "넓이 " + m[1] + " cm²", { s: 11 });
+    } else if ((m = q.match(/밑변의 길이가 (\d+) cm, 높이가 (\d+) cm인 (평행사변형|삼각형)/)) || (m = q.match(/넓이가 (\d+) cm²이고 밑변의 길이가 (\d+) cm인 (삼각형)/))) {
+      var rev = /넓이가/.test(m[0]), base = rev ? Number(m[2]) : Number(m[1]), hv = rev ? 0 : Number(m[2]), isTri = m[3] === "삼각형";
+      var rr = clampR(base / (hv || base * 0.7), 0.7, 2.6); w = 180; h = w / rr; if (h > 92) { h = 92; w = h * rr; }
+      x = (W - w) / 2 - (isTri ? 0 : 14); y = 36 + (92 - h) / 2;
+      var fx = isTri ? x + w * 0.68 : x + 28;
+      pts = isTri ? [[x, y + h], [x + w, y + h], [fx, y]] : [[x, y + h], [x + w, y + h], [x + w + 28, y], [x + 28, y]];
+      body += P(pts) + L([fx, y], [fx, y + h], { d: 1, c: ACC }) + rightMark(fx, y + h, 1, -1) + T(x + w / 2, y + h + 15, "밑변 " + base + " cm") + T(isTri ? (fx + x + w) / 2 + 8 : fx + 6, y + h / 2 + 4, "높이 " + (rev ? "?" : hv + " cm"), { a: "start", c: ACC, s: 11 });
+      if (rev) body += T(W / 2, 22, "넓이 " + m[1] + " cm²", { s: 10, c: "#555b70" });
+    } else if ((m = q.match(/두 대각선의 길이가 (\d+) cm, (\d+) cm인 마름모/))) {
+      var d1 = Number(m[1]), d2 = Number(m[2]), r2 = clampR(d1 / d2, 0.5, 2.6); w = 200; h = w / r2; if (h > 104) { h = 104; w = h * r2; }
+      var cx = W / 2, cy = 86;
+      body += P([[cx - w / 2, cy], [cx, cy - h / 2], [cx + w / 2, cy], [cx, cy + h / 2]]) + L([cx - w / 2, cy], [cx + w / 2, cy], { d: 1, c: ACC }) + L([cx, cy - h / 2], [cx, cy + h / 2], { d: 1, c: ACC }) +
+        T(cx + w / 4, cy - 5, d1 + " cm", { c: ACC, s: 11 }) + T(cx + 5, cy + h / 4 + 4, d2 + " cm", { a: "start", c: ACC, s: 11 });
+    } else if ((m = q.match(/윗변 (\d+) cm, 아랫변 (\d+) cm, 높이 (\d+) cm인 사다리꼴/))) {
+      var ta = Number(m[1]), tb = Number(m[2]), th = Number(m[3]), bw2 = 190, tw = bw2 * clampR(ta / tb, 0.3, 0.92); h = clampR(bw2 * th / tb, 52, 92);
+      x = (W - bw2) / 2; y = 40 + (92 - h) / 2; var tx = x + (bw2 - tw) * 0.35;
+      body += P([[x, y + h], [x + bw2, y + h], [tx + tw, y], [tx, y]]) + L([tx, y], [tx, y + h], { d: 1, c: ACC }) + rightMark(tx, y + h, 1, -1) + T(tx + tw / 2, y - 6, ta + " cm") + T(x + bw2 / 2, y + h + 15, tb + " cm") + T(tx + 6, y + h / 2 + 4, th + " cm", { a: "start", c: ACC, s: 11 });
+    } else if ((m = q.match(/반지름이 (\d+) cm인 원 (\d+)개를 서로 맞닿게/))) {
+      var nC = Number(m[2]), rc = Math.min(40, 280 / (2 * nC)), sx = (W - 2 * rc * nC) / 2;
+      for (var ci = 0; ci < nC; ci++) body += '<circle cx="' + f1(sx + rc + 2 * rc * ci) + '" cy="82" r="' + f1(rc) + '" fill="' + FILL + '" stroke="' + INK + '" stroke-width="2"/>';
+      body += L([sx + rc, 82], [sx + 2 * rc, 82], { c: ACC }) + T(sx + rc * 1.5, 77, m[1] + " cm", { c: ACC, s: 10 }) + L([sx, 82 + rc + 12], [sx + 2 * rc * nC, 82 + rc + 12], { w: 1.2 }) + L([sx, 82 + rc + 7], [sx, 82 + rc + 17], { w: 1.2 }) + L([sx + 2 * rc * nC, 82 + rc + 7], [sx + 2 * rc * nC, 82 + rc + 17], { w: 1.2 }) + T(W / 2, 82 + rc + 27, "?", { c: ACC });
+    } else if ((q.match(/지름이 \d+ cm인/g) || []).length === 1 && (m = q.match(/(반지름|지름)이 (\d+) cm인 (원|구)의/))) {
+      var ccx = W / 2, ccy = 88, R0 = 58, isR = m[1] === "반지름";
+      body += '<circle cx="' + ccx + '" cy="' + ccy + '" r="' + R0 + '" fill="' + FILL + '" stroke="' + INK + '" stroke-width="2"/>' + (m[3] === "구" ? '<ellipse cx="' + ccx + '" cy="' + ccy + '" rx="' + R0 + '" ry="24" fill="none" stroke="' + INK + '" stroke-width="1.1" stroke-dasharray="4 3"/>' : "") +
+        L([isR ? ccx : ccx - R0, ccy], [ccx + R0, ccy], { c: ACC, w: 2 }) + '<circle cx="' + ccx + '" cy="' + ccy + '" r="2.6" fill="' + INK + '"/>' + T(isR ? ccx + R0 / 2 : ccx + R0 / 2, ccy - 6, m[2] + " cm", { c: ACC, s: 11 }) + T(ccx, 24, m[1], { s: 10, c: "#555b70" });
+    } else if ((m = q.match(/삼각형의 두 각이 (\d+)°, (\d+)°/)) || (m = q.match(/나머지 한 각이 (\d+)°예요\. 크기가 같은 두 각/)) || (m = q.match(/같은 두 각이 각각 (\d+)°예요\. 나머지 한 각/))) {
+      var Aa, Bb, la, lb, lc;
+      if (/두 각이 \d+°, /.test(m[0])) { Aa = Number(m[1]); Bb = Number(m[2]); la = Aa + "°"; lb = Bb + "°"; lc = "?"; }
+      else if (/나머지 한 각이/.test(m[0])) { Aa = Bb = (180 - Number(m[1])) / 2; la = lb = "?"; lc = m[1] + "°"; }
+      else { Aa = Bb = Number(m[1]); la = lb = m[1] + "°"; lc = "?"; }
+      if (Aa + Bb >= 178 || Aa <= 0 || Bb <= 0) return null;
+      var ra1 = Aa * Math.PI / 180, rb1 = Bb * Math.PI / 180, hh = 100 / (1 / Math.tan(ra1) + 1 / Math.tan(rb1));
+      pts = fit([[0, 0], [100, 0], [hh / Math.tan(ra1), -hh]], 46, 40, 248, 92);
+      var gcx = (pts[0][0] + pts[1][0] + pts[2][0]) / 3, gcy = (pts[0][1] + pts[1][1] + pts[2][1]) / 3;
+      var inward = function (p, t) { return [p[0] + (gcx - p[0]) * t, p[1] + (gcy - p[1]) * t]; };
+      var narrow = pts[1][0] - pts[0][0] < 90;
+      body += P(pts) + [[0, la], [1, lb], [2, lc]].map(function (e) { if (narrow && e[0] < 2) return T(pts[e[0]][0] + (e[0] ? 7 : -7), pts[e[0]][1] - 3, e[1], { s: 12, a: e[0] ? "start" : "end", c: e[1] === "?" ? ACC : INK }); var ip = inward(pts[e[0]], narrow ? 0.42 : 0.3); return T(ip[0], ip[1] + 4, e[1], { s: 12, c: e[1] === "?" ? ACC : INK }); }).join("");
+    } else if ((m = q.match(/평행사변형의 한 각이 (\d+)°일 때/))) {
+      var pa = Number(m[1]) * Math.PI / 180;
+      pts = fit([[0, 0], [130, 0], [130 + 72 * Math.cos(pa), -72 * Math.sin(pa)], [72 * Math.cos(pa), -72 * Math.sin(pa)]], 50, 38, 240, 92);
+      var pcx = (pts[0][0] + pts[2][0]) / 2, pcy = (pts[0][1] + pts[2][1]) / 2;
+      body += P(pts) + T(pts[0][0] + (pcx - pts[0][0]) * 0.24, pts[0][1] + (pcy - pts[0][1]) * 0.24 + 4, m[1] + "°") + T(pts[1][0] + (pcx - pts[1][0]) * 0.24, pts[1][1] + (pcy - pts[1][1]) * 0.24 + 4, "?", { c: ACC });
+    } else if ((m = q.match(/^(\d+)°는 어떤 각/))) {
+      var av = Number(m[1]), ar = av * Math.PI / 180, vx = av > 90 ? 180 : 120, vy = 132, len = 120, ex = vx + len * Math.cos(ar), ey = vy - len * Math.sin(ar), arcR = 30;
+      body += L([vx, vy], [vx + 140, vy], { w: 2.4 }) + L([vx, vy], [ex, ey], { w: 2.4 }) + '<path d="M' + f1(vx + arcR) + " " + vy + " A" + arcR + " " + arcR + " 0 0 0 " + f1(vx + arcR * Math.cos(ar)) + " " + f1(vy - arcR * Math.sin(ar)) + '" fill="none" stroke="' + ACC + '" stroke-width="2"/>' +
+        T(vx + (av < 35 ? 100 : arcR + 20) * Math.cos(ar / 2), vy - (av < 35 ? 100 : arcR + 20) * Math.sin(ar / 2) + 4, av + "°", { c: ACC });
+    } else if ((m = q.match(/길이가 같은 두 변이 각각 (\d+) cm이고 나머지 한 변이 (\d+) cm인 이등변삼각형/))) {
+      var s1 = Number(m[1]), b1 = Number(m[2]); if (b1 >= 2 * s1) return null;
+      var hi = Math.sqrt(s1 * s1 - b1 * b1 / 4);
+      pts = fit([[0, 0], [b1, 0], [b1 / 2, -clampR(hi, b1 * 0.45, b1 * 1.6)]], 60, 34, 220, 96);
+      body += P(pts) + T((pts[0][0] + pts[1][0]) / 2, pts[0][1] + 15, b1 + " cm") + T((pts[0][0] + pts[2][0]) / 2 - 6, (pts[0][1] + pts[2][1]) / 2, s1 + " cm", { a: "end" }) + T((pts[1][0] + pts[2][0]) / 2 + 6, (pts[1][1] + pts[2][1]) / 2, s1 + " cm", { a: "start" });
+    } else if ((m = q.match(/세 변의 길이가 (\d+) cm, (\d+) cm, (\d+) cm인 삼각형/))) {
+      var sa = Number(m[1]), sb = Number(m[2]), sc = Number(m[3]);
+      if (sa + sb <= sc || sa + sc <= sb || sb + sc <= sa) return null;
+      var px = (sa * sa + sc * sc - sb * sb) / (2 * sc), py = Math.sqrt(Math.max(0, sa * sa - px * px));
+      pts = fit([[0, 0], [sc, 0], [px, -py]], 56, 34, 228, 96);
+      body += P(pts) + T((pts[0][0] + pts[1][0]) / 2, pts[0][1] + 15, sc + " cm") + T((pts[0][0] + pts[2][0]) / 2 - 6, (pts[0][1] + pts[2][1]) / 2, sa + " cm", { a: "end" }) + T((pts[1][0] + pts[2][0]) / 2 + 6, (pts[1][1] + pts[2][1]) / 2, sb + " cm", { a: "start" });
+    } else if ((m = q.match(/이웃한 두 변의 길이가 (\d+) cm, (\d+) cm인 평행사변형/))) {
+      var qa = Number(m[1]), qb = Number(m[2]), sl = 64 * clampR(qb / qa, 0.55, 1.2);
+      pts = fit([[0, 0], [130, 0], [130 + sl * 0.5, -sl * 0.87], [sl * 0.5, -sl * 0.87]], 56, 38, 228, 90);
+      body += P(pts) + T((pts[0][0] + pts[1][0]) / 2, pts[0][1] + 15, qa + " cm") + T((pts[1][0] + pts[2][0]) / 2 + 7, (pts[1][1] + pts[2][1]) / 2 + 4, qb + " cm", { a: "start" });
+    } else if ((m = q.match(/한 변의 길이가 (\d+) cm인 (마름모)/)) || (m = q.match(/한 변의 길이가 (\d+) cm인 정(삼|오|육|팔)각형/)) || (m = q.match(/모든 변의 길이의 합이 (\d+) cm인 정(삼|사|오|육|팔)각형/))) {
+      var isSum = /모든 변/.test(m[0]);
+      pts = m[2] === "마름모" ? [[170, 28], [252, 86], [170, 144], [88, 86]] : regular(NUM[m[2]], 170, NUM[m[2]] === 3 ? 96 : 86, NUM[m[2]] === 3 ? 62 : 56);
+      var e0 = m[2] === "마름모" ? [pts[1], pts[2]] : [pts[Math.floor(pts.length / 2)], pts[Math.floor(pts.length / 2) + 1] || pts[0]];
+      var bot = pts.reduce(function (acc, p, i) { var nx = pts[(i + 1) % pts.length]; return (p[1] + nx[1]) / 2 > acc.y ? { y: (p[1] + nx[1]) / 2, x: (p[0] + nx[0]) / 2 } : acc; }, { y: -1, x: 0 });
+      body += P(pts) + (m[2] === "마름모" ? T((e0[0][0] + e0[1][0]) / 2 + 8, (e0[0][1] + e0[1][1]) / 2 + 12, m[1] + " cm", { a: "start" }) : T(bot.x, bot.y + 15, isSum ? "?" : m[1] + " cm", { c: isSum ? ACC : INK }));
+      if (isSum) body += T(170, 20, "모든 변의 길이의 합 " + m[1] + " cm", { s: 10, c: "#555b70" });
+    } else if ((m = q.match(/^(삼각형|사각형|오각형|육각형|칠각형|팔각형)의 (변|꼭짓점|대각선)/))) {
+      var nn = NUM[m[1].charAt(0)];
+      pts = nn === 3 ? [[96, 138], [252, 138], [196, 36]] : (nn === 4 ? [[92, 136], [250, 138], [228, 46], [122, 38]] : regular(nn, 170, 88, 58));
+      body += P(pts);
+      if (m[2] === "꼭짓점") body += pts.map(function (p) { return '<circle cx="' + f1(p[0]) + '" cy="' + f1(p[1]) + '" r="3.4" fill="' + ACC + '"/>'; }).join("");
+    } else if ((m = q.match(/^(삼|사|오|육|팔)각(기둥|뿔)의 (면|모서리|꼭짓점)/))) {
+      var pn = NUM[m[1]], isPr = m[2] === "기둥", pcx2 = 170, rx = 66, ry = 19, topY = isPr ? 46 : 0, botY = 128, off2 = Math.PI / 2 + Math.PI / pn + 0.22, ang = [], bp = [];
+      for (var pi2 = 0; pi2 < pn; pi2++) { var th2 = off2 + 2 * Math.PI * pi2 / pn; ang.push(th2); bp.push([pcx2 + rx * Math.cos(th2), botY + ry * Math.sin(th2)]); }
+      var xsb = bp.map(function (p) { return p[0]; }), iMin = xsb.indexOf(Math.min.apply(null, xsb)), iMax = xsb.indexOf(Math.max.apply(null, xsb));
+      var hid = ang.map(function (t, i) { return Math.sin(t) < -0.02 && i !== iMin && i !== iMax; });
+      var backish = ang.map(function (t, i) { return Math.sin(t) < -0.02 || ((i === iMin || i === iMax) && Math.sin(t) < 0.02); });
+      if (isPr) { var tp = bp.map(function (p) { return [p[0], p[1] - (botY - topY)]; }); body += P(tp, { f: "#eef7ff" }); for (var e1 = 0; e1 < pn; e1++) body += L(tp[e1], bp[e1], { d: hid[e1], w: hid[e1] ? 1.2 : 2 }); }
+      else { var apex = [pcx2, 30]; for (var e2 = 0; e2 < pn; e2++) body += L(apex, bp[e2], { d: hid[e2], w: hid[e2] ? 1.2 : 2 }); }
+      for (var e3 = 0; e3 < pn; e3++) { var n3 = (e3 + 1) % pn, hd = (hid[e3] || hid[n3]) || (backish[e3] && backish[n3]); body += L(bp[e3], bp[n3], { d: hd, w: hd ? 1.2 : 2 }); }
+    } else if ((m = q.match(/위에서 본 모양의 각 자리에 쓴 수가 ([\d, ]+)/))) {
+      var hs = m[1].split(",").map(function (v) { return Number(v.trim()); }).filter(function (v) { return v > 0; });
+      if (hs.length < 2 || hs.length > 7) return null;
+      var cs = Math.min(44, 280 / hs.length), sx0 = (W - cs * hs.length) / 2;
+      body += T(W / 2, 40, "위에서 본 모양", { s: 11, c: "#555b70" });
+      hs.forEach(function (v, i) { body += '<rect x="' + f1(sx0 + cs * i) + '" y="60" width="' + f1(cs) + '" height="' + f1(cs) + '" fill="' + FILL + '" stroke="' + INK + '" stroke-width="2"/>' + T(sx0 + cs * (i + 0.5), 60 + cs / 2 + 6, String(v), { s: 17 }); });
+    } else {
+      return null;
+    }
+    return {
+      svg: '<svg viewBox="0 0 ' + W + " " + H + '" xmlns="http://www.w3.org/2000/svg" role="img" font-family="inherit" font-weight="700"><rect x="0" y="0" width="' + W + '" height="' + H + '" rx="10" fill="#ffffff" stroke="' + INK + '" stroke-width="2"/>' + body + "</svg>",
+      text: questionText
+    };
+  }
+
   function buildAutoChart(quizObj, questionText) {
     if (!isMathQuiz(quizObj) || quizObj.svg) return null;
     var kind = AUTO_CHART_UNITS[quizObj.unit];
@@ -4435,7 +4571,7 @@
   }
 
   function renderQuestionAndChoices(catMeta, questionText, choices, disabledIndices, feedbackMsg, quizObj) {
-    var autoChart = buildAutoChart(quizObj, questionText);
+    var autoChart = buildAutoChart(quizObj, questionText) || buildAutoShape(quizObj, questionText);
     if (autoChart) questionText = autoChart.text;
     var catTag = document.getElementById("question-category-tag");
     var tierSuffix = (quizObj && quizObj.tier) ? (" · T" + quizObj.tier) : "";
