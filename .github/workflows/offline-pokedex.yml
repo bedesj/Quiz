@@ -1,0 +1,48 @@
+name: Bundle 1025 Offline Pokedex Sprites
+
+on:
+  push:
+    branches: [ main, master ]
+    paths-ignore:
+      - 'sprites/**'
+      - 'data/offline_sprites_bundle.js'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bundle-offline-sprites:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Pre-download all 1,025 Pokemon + Shiny + Offline Bundle
+        run: |
+          python3 download_pokedex_offline.py --hd
+
+      - name: Commit offline sprites directly to repository for GitHub Pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add sprites/ data/offline_sprites_bundle.js
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: bundle all 1,025 offline Pokedex sprites for 100% offline play"
+            git push
+          fi
+
+      - name: Build 100% Offline Standalone ZIP Artifact
+        run: |
+          zip -r pokemon-quiz-100pct-offline.zip index.html manifest.json sw.js css data js icons screenshots sprites APK_설치_가이드.md game.md
+
+      - name: Upload 100% Offline ZIP Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pokemon-quiz-100pct-offline
+          path: pokemon-quiz-100pct-offline.zip
