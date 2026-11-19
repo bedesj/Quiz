@@ -883,6 +883,17 @@ html, body {
 .prog-col-header.math { background: #ff9248; }
 .prog-col-header.english { background: #46c37b; }
 .prog-col-header.hanja { background: #df6447; }
+.prog-col-header.social { background: #20a39e; }
+.prog-col-header.science { background: #5c7cfa; }
+/* 사회·과학이 켜지면 과목이 6개가 된다 (넓은 화면에서만 6칸) */
+@media (min-width: 861px) {
+  .progress-columns-grid.cols-many { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+  .progress-columns-grid.cols-many .prog-col-title { font-size: 0.92em; }
+}
+/* 좁은 화면에서는 과목 칸이 3줄이 되므로, 칸이 눌리지 않게 높이를 지키고 화면을 내려 본다 */
+@media (max-width: 860px) {
+  .progress-columns-grid.cols-many { grid-auto-rows: minmax(300px, auto); }
+}
 
 .prog-col-title {
   font-size: 17px;

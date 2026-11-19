@@ -114,16 +114,17 @@
   window.ALL_SUBJECT_UNITS = ALL;
 
   // 학년을 따라가는 과목 (한자·창의력은 급수·수준으로 따로 나아간다)
-  window.GRADED_SUBJECTS = ["korean", "math", "english"];
+  window.GRADED_SUBJECTS = ["korean", "math", "social", "science", "english"];
   window.stageUnits = function (sk, stageId) { return (ALL[sk] || []).filter(function (u) { return u.stage === stageId; }); };
 
   // 게임은 window.SUBJECT_UNITS[과목] 을 "지금 단계의 단원 목록"으로 쓴다.
   // 과목별 단계가 바뀌면 이 함수를 불러 그 목록을 갈아 끼운다. 그 단계에 단원이 없는 과목은 1학년 1학기 목록을 쓴다.
+  // 1학년 1학기 단원도 없는 과목(3학년부터 배우는 사회·과학을 아직 시작하지 않은 때)은 목록을 지워 둔다.
   window.applySubjectStageView = function (subjectStage) {
     window.GRADED_SUBJECTS.forEach(function (sk) {
       var list = window.stageUnits(sk, (subjectStage && subjectStage[sk]) || "g1a");
       if (!list.length) list = window.stageUnits(sk, "g1a");
-      window.SUBJECT_UNITS[sk] = list;
+      if (list.length) window.SUBJECT_UNITS[sk] = list; else delete window.SUBJECT_UNITS[sk];
     });
   };
 })();

@@ -67,7 +67,7 @@
     },
     creativeDiff: "easy", // 'easy' | 'normal' | 'hard'
     gradeStage: "g1a", // 학습 수준 화면에서 고른 학년 (GRADE_STAGES 의 id). 예전 기록은 모두 1학년 1학기로 읽는다
-    subjectStage: { korean: "g1a", math: "g1a", english: "g1a" }, // 과목별 지금 단계. subjectUnitIdx 는 이 단계 안에서의 순서다
+    subjectStage: { korean: "g1a", math: "g1a", english: "g1a", social: "", science: "" }, // 과목별 지금 단계. subjectUnitIdx 는 이 단계 안에서의 순서다
     subjectTiers: {
       korean: 2,
       math: 2,
@@ -225,12 +225,34 @@
     }
   })();
 
+  // 3학년부터 배우는 과목. 과목별 단계(subjectStage)가 비어 있으면 아직 시작하지 않은 것이다.
+  function lateSubjects() { return ["social", "science"]; }
+  function isLateSubjectOn(sk) {
+    var list = window.SUBJECT_UNITS && window.SUBJECT_UNITS[sk];
+    return !!(state.subjectStage && state.subjectStage[sk] && list && list.length);
+  }
+  function subjectBadge(sk) {
+    var sl = window.SUBJECT_LIST || [];
+    for (var i = 0; i < sl.length; i++) if (sl[i].key === sk) return sl[i].badge;
+    return sk;
+  }
+  function firstStageIndexWithUnits(sk) {
+    var stages = window.GRADE_STAGES || [];
+    for (var i = 0; i < stages.length; i++) if (window.stageUnits(sk, stages[i].id).length > 0) return i;
+    return -1;
+  }
+  function stageIndexOf(stageId) {
+    var stages = window.GRADE_STAGES || [];
+    for (var i = 0; i < stages.length; i++) if (stages[i].id === stageId) return i;
+    return -1;
+  }
+
   // ---------------- 단원 ↔ 티어 동기화 헬퍼 ----------------
   function syncTiersFromUnits() {
     // 과목별 단계에 맞는 단원 목록을 먼저 갈아 끼운다 (SUBJECT_UNITS = 지금 단계의 단원들)
     if (window.applySubjectStageView) window.applySubjectStageView(state.subjectStage);
     var unitsMap = window.SUBJECT_UNITS || {};
-    var subjs = ["korean", "math", "english", "hanja"];
+    var subjs = ["korean", "math", "english", "hanja"].concat(lateSubjects());
     for (var i = 0; i < subjs.length; i++) {
       var sk = subjs[i];
       var uList = unitsMap[sk] || [];
@@ -273,6 +295,10 @@
         state.subjectUnitIdx[gk] = 0;
       }
     });
+    lateSubjects().forEach(function (lk) {
+      var first = firstStageIndexWithUnits(lk);
+      if (first === -1 || stageIndexOf(stageId) < first) state.subjectStage[lk] = "";
+    });
     state.presetId = "custom";
     syncTiersFromUnits();
   }
@@ -283,6 +309,13 @@
       if (found && window.stageUnits(subj, stages[i].id).length > 0) {
         state.subjectStage[subj] = stages[i].id;
         state.subjectUnitIdx[subj] = 0;
+        var newStageId = stages[i].id;
+        lateSubjects().forEach(function (lk) {
+          if (!state.subjectStage[lk] && window.stageUnits(lk, newStageId).length > 0) {
+            state.subjectStage[lk] = newStageId;
+            state.subjectUnitIdx[lk] = 0;
+          }
+        });
         return stages[i];
       }
       if (stages[i].id === cur) found = true;
@@ -440,7 +473,7 @@
       state.presetId = parsed.presetId;
     }
     if (parsed.subjectTiers && typeof parsed.subjectTiers === "object") {
-      var subjs = ["korean", "math", "english", "creative", "hanja"];
+      var subjs = ["korean", "math", "english", "creative", "hanja"].concat(lateSubjects());
       for (var i = 0; i < subjs.length; i++) {
         var sk = subjs[i];
         var tv = Number(parsed.subjectTiers[sk]);
@@ -448,7 +481,7 @@
       }
     }
     if (parsed.subjectUnitIdx && typeof parsed.subjectUnitIdx === "object") {
-      var uSubjs = ["korean", "math", "english", "hanja"];
+      var uSubjs = ["korean", "math", "english", "hanja"].concat(lateSubjects());
       for (var u = 0; u < uSubjs.length; u++) {
         var uk = uSubjs[u];
         if (typeof parsed.subjectUnitIdx[uk] === "number") {
@@ -474,6 +507,7 @@
       (window.GRADED_SUBJECTS || []).forEach(function (gk) {
         var sv = parsed.subjectStage[gk];
         if (typeof sv === "string" && window.stageUnits(gk, sv).length > 0) state.subjectStage[gk] = sv;
+        else if (sv === "" && lateSubjects().indexOf(gk) !== -1) state.subjectStage[gk] = "";
       });
     }
     if (Array.isArray(parsed.knownHanja)) {
@@ -2663,8 +2697,8 @@
 
   // ---------------- 2. 학습 수준 정하기 전용 화면 (참조 4032.png) ----------------
   function computeTwoWeekAutoAdvice() {
-    var subjLabels = { korean: "국어", math: "수학", english: "영어", creative: "창의력", hanja: "한자" };
-    var keys = ["korean", "math", "english", "hanja"];
+    var subjLabels = { korean: "국어", math: "수학", english: "영어", creative: "창의력", hanja: "한자", social: "사회", science: "과학" };
+    var keys = ["korean", "math", "english", "hanja"].concat(lateSubjects().filter(isLateSubjectOn));
     for (var i = 0; i < keys.length; i++) {
       var sk = keys[i];
       if (sk === "hanja" && !state.hanjaEnabled) continue;
@@ -2846,6 +2880,8 @@
       { key: "english", badge: "🔤 영어" },
       { key: "hanja", badge: "漢 한자" }
     ];
+    // 사회·과학은 시작한 뒤에만 수학 다음 줄에 넣는다
+    lateSubjects().filter(isLateSubjectOn).forEach(function (lk, li) { subjConfigs.splice(2 + li, 0, { key: lk, badge: subjectBadge(lk) }); });
 
     var rHtml = "";
     for (var s = 0; s < subjConfigs.length; s++) {
@@ -2885,8 +2921,8 @@
         '<div class="subj-unit-row upcoming-subject">' +
         '<div class="subj-badge-pill ' + sItem.key + '">' + sItem.badge + "</div>" +
         '<div class="unit-info-box">' +
-        '<div class="unit-info-title">준비 중</div>' +
-        '<div class="unit-info-desc">' + (fromStage ? fromStage.label : "") + "부터 배우는 과목이에요 · 단원과 문제를 준비하고 있어요</div>" +
+        '<div class="unit-info-title">' + (firstStageIndexWithUnits(sItem.key) === -1 ? "준비 중" : (fromStage ? fromStage.short + "부터 시작" : "시작 전")) + "</div>" +
+        '<div class="unit-info-desc">' + (fromStage ? fromStage.label : "") + "부터 배우는 과목이에요 · " + (firstStageIndexWithUnits(sItem.key) === -1 ? "단원과 문제를 준비하고 있어요" : "위에서 학년을 " + (fromStage ? fromStage.short : "") + " 이상으로 고르면 시작해요") + "</div>" +
         "</div>" +
         "</div>";
     }
@@ -3018,7 +3054,7 @@
 
   // 과목별 🔍 확인 문제 모달
   function openSubjectCheckModal(subj) {
-    var subjTitles = { korean: "국어", math: "수학", english: "영어", hanja: "한자" };
+    var subjTitles = { korean: "국어", math: "수학", english: "영어", hanja: "한자", social: "사회", science: "과학" };
     var uList = (window.SUBJECT_UNITS && window.SUBJECT_UNITS[subj]) || [];
     var pickedItems = [];
 
@@ -3186,6 +3222,8 @@
       { key: "english", title: "🔤 영어" },
       { key: "hanja", title: "漢 한자" }
     ];
+    lateSubjects().filter(isLateSubjectOn).forEach(function (lk, li) { cols.splice(2 + li, 0, { key: lk, title: subjectBadge(lk) }); });
+    grid.classList.toggle("cols-many", cols.length > 4);
 
     var todayIso = getTodayLocalStr();
     var twoWeeksAgoIso = addDaysLocalStr(todayIso, -14);
@@ -3847,7 +3885,7 @@
   }
 
   function getActiveSubjects() {
-    var list = ["korean", "math", "english"];
+    var list = ["korean", "math"].concat(lateSubjects().filter(isLateSubjectOn)).concat(["english"]);
     if (state.creativeEnabled !== false) list.push("creative");
     if (state.hanjaEnabled) list.push("hanja");
     return list;
