@@ -4030,3 +4030,90 @@ img.offline-shiny-tint:not(.is-wild-silhouette) {
   background: linear-gradient(180deg, rgba(255, 254, 247, 0.96) 0%, rgba(248, 244, 220, 0.95) 100%) !important;
   box-shadow: 0 4px 10px rgba(15, 23, 42, 0.34), inset 0 -3px 0 #e6dec0 !important;
 }
+
+
+/* ===== 학년(단계) 고르기 — 미취학 ~ 6학년 ===== */
+.grade-stage-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.grade-band-label {
+  font-size: 12px;
+  color: #5c6470;
+  padding: 2px 4px 2px 8px;
+  white-space: nowrap;
+}
+.grade-band-label:first-child { padding-left: 0; }
+.grade-stage-btn {
+  font: inherit;
+  font-size: 15px;
+  min-width: 52px;
+  padding: 5px 9px;
+  line-height: 1.1;
+  color: var(--ink);
+  background: #fff;
+  border: 2.5px solid var(--ink);
+  border-radius: 12px;
+  box-shadow: 0 3px 0 var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  white-space: nowrap;
+}
+.grade-stage-btn small { font-size: 10px; opacity: 0.8; }
+.grade-stage-btn.active { background: #ffd43b; }
+.grade-stage-btn.not-ready {
+  background: #e9ecef;
+  color: #868e96;
+  border-color: #adb5bd;
+  box-shadow: 0 3px 0 #adb5bd;
+  cursor: default;
+}
+.grade-stage-current {
+  margin-left: auto;
+  font-size: 13px;
+  background: #fff3bf;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  padding: 1px 10px;
+  white-space: nowrap;
+}
+.subj-badge-pill.social { background: #20a39e; }
+.subj-badge-pill.science { background: #5c7cfa; }
+.subj-unit-row.upcoming-subject { opacity: 0.6; }
+
+/* 세로 화면에서는 버튼·카드·◀▶ 대신 펼침 목록으로 (한 화면에 다 들어오게) */
+.level-dropdown, .grade-stage-select {
+  display: none;
+  font: inherit;
+  font-size: 16px;
+  color: var(--ink);
+  background: #fff;
+  border: 2.5px solid var(--ink);
+  border-radius: 12px;
+  box-shadow: 0 3px 0 var(--ink);
+  padding: 8px 10px;
+  min-width: 0;
+}
+@media (orientation: portrait) {
+  .grade-stage-row, .grade-stage-current, .preset-cards-row { display: none; }
+  .grade-stage-select, .preset-select { display: block; width: 100%; }
+  #screen-level .level-panel-box { padding-top: 10px; padding-bottom: 12px; }
+  #screen-level .panel-heading-sub { display: none; }
+  #screen-level .subj-unit-row { gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  #screen-level .subj-unit-row .unit-arrow-btn,
+  #screen-level .subj-unit-row .unit-info-box,
+  #screen-level .subj-unit-row .creative-level-btn { display: none; }
+  #screen-level .subj-unit-row .unit-select { display: block; flex: 1 1 150px; }
+  /* '🔍 확인 문제' 는 자리가 좁아 '🔍 확인' 으로 줄여 보여 준다 */
+  #screen-level .btn-subj-check { font-size: 0; }
+  #screen-level .btn-subj-check::before { content: "🔍 확인"; font-size: 13px; }
+  #screen-level .subj-unit-row.upcoming-subject .unit-info-box { display: block; flex: 1 1 0; padding: 6px 10px; }
+  #screen-level .subj-unit-row.upcoming-subject .unit-info-desc { display: none; }
+  #screen-level .subj-badge-pill { flex: none; min-width: 0; padding-left: 8px; padding-right: 8px; font-size: 14px; }
+  #screen-level .unit-action-btn { flex: none; padding-left: 8px; padding-right: 8px; font-size: 13px; white-space: nowrap; }
+  #screen-level .btn-subj-check { font-size: 0; }
+}

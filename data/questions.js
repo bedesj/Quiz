@@ -14840,3 +14840,70 @@ window.generateDynamicMathQuestion = function (maxTier, explicitSeed) {
     ttsEn: ""
   };
 };
+
+
+// ===================== 미취학 ~ 6학년 단계 뼈대 =====================
+// 학기 단위 단계 14개. 단원(SUBJECT_UNITS)마다 stage 를 붙여 어느 단계의 내용인지 표시한다.
+window.GRADE_STAGES = [
+  { id: "p1", label: "미취학 1", short: "미취학1", band: "미취학" },
+  { id: "p2", label: "미취학 2", short: "미취학2", band: "미취학" },
+  { id: "g1a", label: "1학년 1학기", short: "1-1", band: "1~2학년군" },
+  { id: "g1b", label: "1학년 2학기", short: "1-2", band: "1~2학년군" },
+  { id: "g2a", label: "2학년 1학기", short: "2-1", band: "1~2학년군" },
+  { id: "g2b", label: "2학년 2학기", short: "2-2", band: "1~2학년군" },
+  { id: "g3a", label: "3학년 1학기", short: "3-1", band: "3~4학년군" },
+  { id: "g3b", label: "3학년 2학기", short: "3-2", band: "3~4학년군" },
+  { id: "g4a", label: "4학년 1학기", short: "4-1", band: "3~4학년군" },
+  { id: "g4b", label: "4학년 2학기", short: "4-2", band: "3~4학년군" },
+  { id: "g5a", label: "5학년 1학기", short: "5-1", band: "5~6학년군" },
+  { id: "g5b", label: "5학년 2학기", short: "5-2", band: "5~6학년군" },
+  { id: "g6a", label: "6학년 1학기", short: "6-1", band: "5~6학년군" },
+  { id: "g6b", label: "6학년 2학기", short: "6-2", band: "5~6학년군" }
+];
+
+// 과목 목록. from: 이 단계부터 배우는 과목. graded: false 는 학년이 아니라 급수·수준으로 나아가는 과목.
+window.SUBJECT_LIST = [
+  { key: "korean", name: "국어", badge: "📝 국어", from: "p1", graded: true },
+  { key: "math", name: "수학", badge: "🔢 수학", from: "p1", graded: true },
+  { key: "social", name: "사회", badge: "🌏 사회", from: "g3a", graded: true },
+  { key: "science", name: "과학", badge: "🔬 과학", from: "g3a", graded: true },
+  { key: "english", name: "영어", badge: "🔤 영어", from: "p2", graded: true },
+  { key: "hanja", name: "한자", badge: "漢 한자", from: "p2", graded: false },
+  { key: "creative", name: "창의력", badge: "💡 창의력", from: "p1", graded: false }
+];
+
+// 단원별 성취기준 코드 (2022 개정). 확인된 것만 적는다.
+window.UNIT_STANDARDS = {
+  k0: ["2국01-03", "2국02-05", "2국04-01"], k1: ["2국02-01", "2국03-01", "2국04-01"], k2: ["2국01-04", "2국03-01", "2국04-01"],
+  k3: ["2국01-04", "2국03-01", "2국04-01"], k4: ["2국05-01", "2국06-01"], k5: ["2국01-02", "2국01-05", "2국02-05", "2국04-02"],
+  k6: ["2국01-05", "2국02-01", "2국02-05", "2국04-02"], k7: ["2국02-05", "2국03-01", "2국03-02"],
+  m1: ["2수01-01", "2수01-03"], m2: ["2수03-01"], m3: ["2수01-05", "2수01-06"], m4: ["2수03-06"], m5: ["2수01-01", "2수01-03"],
+  e1: ["4영01-01", "4영01-02", "4영02-02", "4영02-03"], e2: ["4영01-01", "4영01-02", "4영02-02", "4영02-03"], e3: ["4영01-01", "4영01-02", "4영02-02", "4영02-03"],
+  e4: ["4영01-01", "4영01-02", "4영02-02", "4영02-03"], e5: ["4영01-01", "4영01-02", "4영02-02", "4영02-03"], e6: ["4영01-01", "4영01-02", "4영02-02", "4영02-03"],
+  e7: ["4영01-04", "4영01-05", "4영02-05"], e8: ["4영01-05", "4영01-06", "4영02-05"]
+};
+
+// 지금 있는 단원은 모두 1학년 1학기 내용이다. (한자는 학년 대신 급수로 나아가므로 단계는 표시만 한다)
+(function () {
+  var U = window.SUBJECT_UNITS || {};
+  Object.keys(U).forEach(function (sk) {
+    U[sk].forEach(function (u) {
+      if (!u.stage) u.stage = "g1a";
+      if (!u.standards) u.standards = window.UNIT_STANDARDS[u.id] || [];
+    });
+  });
+})();
+
+window.getGradeStage = function (id) {
+  for (var i = 0; i < window.GRADE_STAGES.length; i++) if (window.GRADE_STAGES[i].id === id) return window.GRADE_STAGES[i];
+  return null;
+};
+// 그 단계에 단원이 하나라도 준비되어 있는지 (과목을 주면 그 과목만 본다)
+window.stageHasContent = function (stageId, subjectKey) {
+  var U = window.SUBJECT_UNITS || {}, keys = subjectKey ? [subjectKey] : Object.keys(U);
+  for (var i = 0; i < keys.length; i++) {
+    var list = U[keys[i]] || [];
+    for (var j = 0; j < list.length; j++) if (list[j].stage === stageId) return true;
+  }
+  return false;
+};

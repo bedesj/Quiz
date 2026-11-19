@@ -116,13 +116,25 @@
       <div class="subpage-scroll">
         <div id="level-auto-advice" class="advice-banner hidden"></div>
 
+        <!-- 학년(단계) 고르기 -->
+        <div class="level-panel-box">
+          <div class="panel-heading-row">
+            <span class="panel-heading-main">학년 고르기</span>
+            <span class="panel-heading-sub">미취학부터 6학년까지 · 회색은 준비 중인 단계예요</span>
+            <span id="grade-stage-current" class="grade-stage-current"></span>
+          </div>
+          <div id="grade-stage-row" class="grade-stage-row"></div>
+          <select id="grade-stage-select" class="grade-stage-select" aria-label="학년 고르기"></select>
+        </div>
+
         <!-- 단계 일괄 선택 -->
         <div class="level-panel-box">
           <div class="panel-heading-row">
-            <span class="panel-heading-main">단계 선택</span>
-            <span class="panel-heading-sub">세 단계 중 하나를 고르면 전 과목의 출발 단원이 한꺼번에 정해져요</span>
+            <span class="panel-heading-main">출발 위치</span>
+            <span class="panel-heading-sub">고른 학년 안에서 셋 중 하나를 고르면 전 과목의 출발 단원이 한꺼번에 정해져요</span>
           </div>
           <div id="preset-cards-row" class="preset-cards-row"></div>
+          <select id="preset-select" class="level-dropdown preset-select" aria-label="출발 위치 고르기"></select>
         </div>
 
         <!-- 과목별로 정하기 -->

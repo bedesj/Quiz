@@ -66,6 +66,7 @@
       hanja: 0
     },
     creativeDiff: "easy", // 'easy' | 'normal' | 'hard'
+    gradeStage: "g1a", // 지금 배우는 단계 (GRADE_STAGES 의 id). 예전 기록은 모두 1학년 1학기로 읽는다
     subjectTiers: {
       korean: 2,
       math: 2,
@@ -238,6 +239,20 @@
       }
     }
     state.subjectTiers.creative = CREATIVE_DIFF_TIERS[state.creativeDiff] || 5;
+  }
+
+  // 문제가 지금 단계의 것인지. 학년이 아니라 급수·수준으로 나아가는 과목(한자·창의력)과 단원 표시가 없는 문제는 그대로 통과시킨다.
+  var UNIT_STAGE_MAP = null;
+  function isQuestionInCurrentStage(q, subj) {
+    if (!window.GRADE_STAGES || !q.unit) return true;
+    if (subj === "hanja" || subj === "creative") return true;
+    if (!UNIT_STAGE_MAP) {
+      UNIT_STAGE_MAP = {};
+      var U = window.SUBJECT_UNITS || {};
+      Object.keys(U).forEach(function (k) { U[k].forEach(function (u) { UNIT_STAGE_MAP[u.id] = u.stage || "g1a"; }); });
+    }
+    var st = UNIT_STAGE_MAP[q.unit];
+    return !st || st === (state.gradeStage || "g1a");
   }
 
   function findUnitIdxForTier(subj, tierVal) {
@@ -417,6 +432,9 @@
     if (parsed.unitStatus && typeof parsed.unitStatus === "object") {
       state.unitStatus = parsed.unitStatus;
     }
+    if (typeof parsed.gradeStage === "string" && window.stageHasContent && window.stageHasContent(parsed.gradeStage)) {
+      state.gradeStage = parsed.gradeStage;
+    }
     if (Array.isArray(parsed.knownHanja)) {
       state.knownHanja = parsed.knownHanja;
     }
@@ -590,6 +608,7 @@
       presetId: state.presetId,
       subjectUnitIdx: state.subjectUnitIdx,
       creativeDiff: state.creativeDiff,
+      gradeStage: state.gradeStage,
       subjectTiers: state.subjectTiers,
       unitStatus: state.unitStatus,
       knownHanja: state.knownHanja,
@@ -2632,6 +2651,16 @@
     return null;
   }
 
+  // 세로 화면에서 ◀ ▶ 대신 쓰는 단원 펼침 목록
+  function buildUnitSelectHtml(subjKey, uList, curIdx, disabled) {
+    var h = '<select class="level-dropdown unit-select" data-subj="' + subjKey + '" aria-label="단원 고르기"' + (disabled ? " disabled" : "") + ">";
+    for (var i = 0; i < uList.length; i++) {
+      var mark = state.unitStatus[uList[i].id] ? "✓ " : "";
+      h += '<option value="' + i + '"' + (i === curIdx ? " selected" : "") + ">" + mark + uList[i].title + "</option>";
+    }
+    return h + "</select>";
+  }
+
   function renderLevelScreen() {
     syncTiersFromUnits();
 
@@ -2653,6 +2682,53 @@
       });
     } else {
       adviceEl.classList.add("hidden");
+    }
+
+    // 0) 학년(단계) 고르기 — 내용이 준비된 단계만 고를 수 있다
+    var gradeRow = document.getElementById("grade-stage-row");
+    if (gradeRow && window.GRADE_STAGES) {
+      var gHtml = "", lastBand = "";
+      for (var gs = 0; gs < window.GRADE_STAGES.length; gs++) {
+        var gObj = window.GRADE_STAGES[gs];
+        var ready = window.stageHasContent(gObj.id);
+        if (gObj.band !== lastBand) { gHtml += '<span class="grade-band-label">' + gObj.band + "</span>"; lastBand = gObj.band; }
+        gHtml +=
+          '<button type="button" class="grade-stage-btn' + (state.gradeStage === gObj.id ? " active" : "") + (ready ? "" : " not-ready") + '" data-stage="' + gObj.id + '"' + (ready ? "" : " disabled") + ' title="' + gObj.label + (ready ? "" : " (준비 중)") + '">' +
+          gObj.short + (ready ? "" : '<small>준비 중</small>') + "</button>";
+      }
+      gradeRow.innerHTML = gHtml;
+      var gBtns = gradeRow.querySelectorAll(".grade-stage-btn");
+      for (var gb2 = 0; gb2 < gBtns.length; gb2++) {
+        gBtns[gb2].addEventListener("click", function () {
+          var chosenStage = this.getAttribute("data-stage");
+          if (!window.stageHasContent(chosenStage) || chosenStage === state.gradeStage) return;
+          state.gradeStage = chosenStage;
+          saveState();
+          window.SoundFX.click();
+          renderLevelScreen();
+        });
+      }
+      // 세로 화면용: 같은 내용을 펼침 목록 하나로 (버튼 14개 대신)
+      var gSel = document.getElementById("grade-stage-select");
+      if (gSel) {
+        var oHtml = "", oBand = "";
+        for (var go = 0; go < window.GRADE_STAGES.length; go++) {
+          var gItem = window.GRADE_STAGES[go], gReady = window.stageHasContent(gItem.id);
+          if (gItem.band !== oBand) { oHtml += (oBand ? "</optgroup>" : "") + '<optgroup label="' + gItem.band + '">'; oBand = gItem.band; }
+          oHtml += '<option value="' + gItem.id + '"' + (gReady ? "" : " disabled") + (state.gradeStage === gItem.id ? " selected" : "") + ">" + gItem.label + (gReady ? "" : " (준비 중)") + "</option>";
+        }
+        gSel.innerHTML = oHtml + "</optgroup>";
+        gSel.onchange = function () {
+          if (!window.stageHasContent(this.value)) return;
+          state.gradeStage = this.value;
+          saveState();
+          window.SoundFX.click();
+          renderLevelScreen();
+        };
+      }
+      var gCur = window.getGradeStage(state.gradeStage);
+      var gLabel = document.getElementById("grade-stage-current");
+      if (gLabel && gCur) gLabel.textContent = "지금: " + gCur.label;
     }
 
     // 1) 상단 3단계 일괄 선택 카드 (처음부터 / 기초를 아는 수준 / 앞서 있는 수준)
@@ -2690,6 +2766,21 @@
       });
     }
 
+    // 세로 화면용: 출발 위치 카드 3장 대신 펼침 목록 하나 (고르면 같은 카드를 누른 것과 똑같이 동작)
+    var presetSel = document.getElementById("preset-select");
+    if (presetSel) {
+      var psHtml = state.presetId === "custom" ? '<option value="custom" selected>직접 고른 단원 (과목별로 정함)</option>' : "";
+      for (var ps = 0; ps < pKeys.length; ps++) {
+        var psDef = STAGE_PRESET_DEFS[pKeys[ps]];
+        psHtml += '<option value="' + pKeys[ps] + '"' + (state.presetId === pKeys[ps] ? " selected" : "") + ">" + psDef.title + " — " + psDef.desc + "</option>";
+      }
+      presetSel.innerHTML = psHtml;
+      presetSel.onchange = function () {
+        var card = presetRow.querySelector('.preset-stage-card[data-preset="' + this.value + '"]');
+        if (card) card.click();
+      };
+    }
+
     // 2) 과목별로 정하기 5행 (국어·수학·영어·한자 + 창의력 쉬움/보통/어려움)
     var rowsWrap = document.getElementById("subject-unit-rows");
     var subjConfigs = [
@@ -2712,6 +2803,7 @@
       rHtml +=
         '<div class="subj-unit-row" style="' + (isDisabledHanja ? "opacity:0.5" : "") + '">' +
         '<div class="subj-badge-pill ' + sc.key + '">' + sc.badge + "</div>" +
+        buildUnitSelectHtml(sc.key, uList, curIdx, isDisabledHanja) +
         '<button type="button" class="unit-arrow-btn" data-subj="' + sc.key + '" data-dir="-1"' + (curIdx <= 0 || isDisabledHanja ? " disabled" : "") + ">◀</button>" +
         '<div class="unit-info-box">' +
         '<div class="unit-info-title">' + (isDisabledHanja ? "한자 학습 제외됨 (아래 버튼으로 켤 수 있어요)" : uObj.title) + "</div>" +
@@ -2722,6 +2814,23 @@
           ? ('<button type="button" id="btn-open-known-hanja" class="unit-action-btn">아는 글자 <span class="coral-highlight">' + state.knownHanja.length + '자</span></button>')
           : "") +
         '<button type="button" class="unit-action-btn btn-subj-check" data-subj="' + sc.key + '"' + (isDisabledHanja ? " disabled" : "") + ">🔍 확인 문제</button>" +
+        "</div>";
+    }
+
+    // 아직 단원이 없는 과목(사회·과학)은 '준비 중'으로만 보여 준다
+    var subjList = window.SUBJECT_LIST || [];
+    for (var sl = 0; sl < subjList.length; sl++) {
+      var sItem = subjList[sl];
+      if (window.SUBJECT_UNITS && window.SUBJECT_UNITS[sItem.key]) continue;
+      if (sItem.key === "creative") continue;
+      var fromStage = window.getGradeStage(sItem.from);
+      rHtml +=
+        '<div class="subj-unit-row upcoming-subject">' +
+        '<div class="subj-badge-pill ' + sItem.key + '">' + sItem.badge + "</div>" +
+        '<div class="unit-info-box">' +
+        '<div class="unit-info-title">준비 중</div>' +
+        '<div class="unit-info-desc">' + (fromStage ? fromStage.label : "") + "부터 배우는 과목이에요 · 단원과 문제를 준비하고 있어요</div>" +
+        "</div>" +
         "</div>";
     }
 
@@ -2743,6 +2852,9 @@
     rHtml +=
       '<div class="subj-unit-row">' +
       '<div class="subj-badge-pill creative">💡 창의력</div>' +
+      '<select class="level-dropdown unit-select creative-select" aria-label="창의력 수준">' +
+      cDiffs.map(function (d) { return '<option value="' + d.id + '"' + (state.creativeDiff === d.id ? " selected" : "") + ">" + d.label + "</option>"; }).join("") +
+      "</select>" +
       '<div class="unit-info-box">' +
       '<div class="unit-info-title">수수께끼·규칙 찾기</div>' +
       '<div class="unit-info-desc">단원이 없어서 수준만 골라요 · 동적 시각 퍼즐 포함</div>' +
@@ -2766,6 +2878,28 @@
         saveState();
         window.SoundFX.click();
         renderLevelScreen();
+      });
+    }
+
+    // 바인딩: 세로 화면용 단원 펼침 목록 (◀ ▶ 와 같은 동작)
+    var unitSels = rowsWrap.querySelectorAll(".unit-select[data-subj]");
+    for (var us = 0; us < unitSels.length; us++) {
+      unitSels[us].addEventListener("change", function () {
+        var sk2 = this.getAttribute("data-subj");
+        var uList3 = (window.SUBJECT_UNITS && window.SUBJECT_UNITS[sk2]) || [];
+        state.subjectUnitIdx[sk2] = Math.max(0, Math.min(uList3.length - 1, Number(this.value) || 0));
+        state.presetId = "custom";
+        syncTiersFromUnits();
+        saveState();
+        window.SoundFX.click();
+        renderLevelScreen();
+      });
+    }
+    var creSel = rowsWrap.querySelector(".creative-select");
+    if (creSel) {
+      creSel.addEventListener("change", function () {
+        var btn = rowsWrap.querySelector('.creative-level-btn[data-cdiff="' + this.value + '"]');
+        if (btn) btn.click();
       });
     }
 
@@ -3013,6 +3147,8 @@
       var recentLabel = recentLogs.length > 0
         ? ("최근 2주 정답률 " + Math.round((recentLogs.filter(function (a) { return a.correct; }).length / recentLogs.length) * 100) + "% (" + recentLogs.length + "문항)")
         : "최근 2주 기록 없음";
+      var colStage = (sk !== "hanja" && window.getGradeStage) ? window.getGradeStage(state.gradeStage) : null;
+      if (colStage) recentLabel = colStage.label + " · " + recentLabel;
 
       var unitsHtml = "";
       for (var u = 0; u < uList.length; u++) {
@@ -3783,6 +3919,7 @@
       var qSubj = q.subject || q.category;
       if (qSubj !== subj) return false;
       if (specificUnitId) return q.unit === specificUnitId;
+      if (!isQuestionInCurrentStage(q, subj)) return false;
       return (q.tier || 1) <= cappedTier;
     });
 
