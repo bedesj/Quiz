@@ -14900,7 +14900,7 @@ window.getGradeStage = function (id) {
 };
 // 그 단계에 단원이 하나라도 준비되어 있는지 (과목을 주면 그 과목만 본다)
 window.stageHasContent = function (stageId, subjectKey) {
-  var U = window.SUBJECT_UNITS || {}, keys = subjectKey ? [subjectKey] : Object.keys(U);
+  var U = window.ALL_SUBJECT_UNITS || window.SUBJECT_UNITS || {}, keys = subjectKey ? [subjectKey] : Object.keys(U);
   for (var i = 0; i < keys.length; i++) {
     var list = U[keys[i]] || [];
     for (var j = 0; j < list.length; j++) if (list[j].stage === stageId) return true;

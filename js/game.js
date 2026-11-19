@@ -66,7 +66,8 @@
       hanja: 0
     },
     creativeDiff: "easy", // 'easy' | 'normal' | 'hard'
-    gradeStage: "g1a", // 지금 배우는 단계 (GRADE_STAGES 의 id). 예전 기록은 모두 1학년 1학기로 읽는다
+    gradeStage: "g1a", // 학습 수준 화면에서 고른 학년 (GRADE_STAGES 의 id). 예전 기록은 모두 1학년 1학기로 읽는다
+    subjectStage: { korean: "g1a", math: "g1a", english: "g1a" }, // 과목별 지금 단계. subjectUnitIdx 는 이 단계 안에서의 순서다
     subjectTiers: {
       korean: 2,
       math: 2,
@@ -226,6 +227,8 @@
 
   // ---------------- 단원 ↔ 티어 동기화 헬퍼 ----------------
   function syncTiersFromUnits() {
+    // 과목별 단계에 맞는 단원 목록을 먼저 갈아 끼운다 (SUBJECT_UNITS = 지금 단계의 단원들)
+    if (window.applySubjectStageView) window.applySubjectStageView(state.subjectStage);
     var unitsMap = window.SUBJECT_UNITS || {};
     var subjs = ["korean", "math", "english", "hanja"];
     for (var i = 0; i < subjs.length; i++) {
@@ -248,11 +251,43 @@
     if (subj === "hanja" || subj === "creative") return true;
     if (!UNIT_STAGE_MAP) {
       UNIT_STAGE_MAP = {};
-      var U = window.SUBJECT_UNITS || {};
+      var U = window.ALL_SUBJECT_UNITS || window.SUBJECT_UNITS || {};
       Object.keys(U).forEach(function (k) { U[k].forEach(function (u) { UNIT_STAGE_MAP[u.id] = u.stage || "g1a"; }); });
     }
     var st = UNIT_STAGE_MAP[q.unit];
-    return !st || st === (state.gradeStage || "g1a");
+    return !st || st === getSubjectStage(subj);
+  }
+  function getSubjectStage(subj) {
+    return (state.subjectStage && state.subjectStage[subj]) || "g1a";
+  }
+  // 한글 조립·계산 문제 생성기 같은 즉석 문제는 1학년 1학기용이다. 다른 단계에서는 쓰지 않는다.
+  function usesBaseGenerators(subj) {
+    return getSubjectStage(subj) === "g1a";
+  }
+  // 학년을 고르면: 그 단계에 단원이 있는 과목은 그 단계의 첫 단원으로, 없는 과목은 그대로 둔다
+  function chooseGradeStage(stageId) {
+    state.gradeStage = stageId;
+    (window.GRADED_SUBJECTS || []).forEach(function (gk) {
+      if (window.stageUnits(gk, stageId).length > 0 && state.subjectStage[gk] !== stageId) {
+        state.subjectStage[gk] = stageId;
+        state.subjectUnitIdx[gk] = 0;
+      }
+    });
+    state.presetId = "custom";
+    syncTiersFromUnits();
+  }
+  // 한 단계의 마지막 단원을 마치면 다음 단계(내용이 있는 가장 가까운 단계)의 첫 단원으로 넘어간다
+  function advanceSubjectToNextStage(subj) {
+    var stages = window.GRADE_STAGES || [], cur = getSubjectStage(subj), found = false;
+    for (var i = 0; i < stages.length; i++) {
+      if (found && window.stageUnits(subj, stages[i].id).length > 0) {
+        state.subjectStage[subj] = stages[i].id;
+        state.subjectUnitIdx[subj] = 0;
+        return stages[i];
+      }
+      if (stages[i].id === cur) found = true;
+    }
+    return null;
   }
 
   function findUnitIdxForTier(subj, tierVal) {
@@ -435,6 +470,12 @@
     if (typeof parsed.gradeStage === "string" && window.stageHasContent && window.stageHasContent(parsed.gradeStage)) {
       state.gradeStage = parsed.gradeStage;
     }
+    if (parsed.subjectStage && typeof parsed.subjectStage === "object" && window.stageUnits) {
+      (window.GRADED_SUBJECTS || []).forEach(function (gk) {
+        var sv = parsed.subjectStage[gk];
+        if (typeof sv === "string" && window.stageUnits(gk, sv).length > 0) state.subjectStage[gk] = sv;
+      });
+    }
     if (Array.isArray(parsed.knownHanja)) {
       state.knownHanja = parsed.knownHanja;
     }
@@ -609,6 +650,7 @@
       subjectUnitIdx: state.subjectUnitIdx,
       creativeDiff: state.creativeDiff,
       gradeStage: state.gradeStage,
+      subjectStage: state.subjectStage,
       subjectTiers: state.subjectTiers,
       unitStatus: state.unitStatus,
       knownHanja: state.knownHanja,
@@ -728,6 +770,8 @@
         if (uList[curIdx] && uList[curIdx].id === q.unit && curIdx + 1 < uList.length) {
           state.subjectUnitIdx[entry.subject] = curIdx + 1;
           syncTiersFromUnits();
+        } else if (uList[curIdx] && uList[curIdx].id === q.unit && state.subjectStage && state.subjectStage[entry.subject]) {
+          if (advanceSubjectToNextStage(entry.subject)) syncTiersFromUnits();
         }
       }
     }
@@ -2651,6 +2695,12 @@
     return null;
   }
 
+  // 출발 위치 설명: 1학년 1학기는 원래 설명, 다른 단계는 단원 순서로 알려 준다
+  function presetDescForStage(def, order) {
+    if (getSubjectStage("korean") === "g1a" && getSubjectStage("math") === "g1a") return def.desc;
+    return ["첫 단원부터 차근차근 시작해요", "가운데 단원부터 시작해요", "마지막 단원부터 시작해요"][order] || def.desc;
+  }
+
   // 세로 화면에서 ◀ ▶ 대신 쓰는 단원 펼침 목록
   function buildUnitSelectHtml(subjKey, uList, curIdx, disabled) {
     var h = '<select class="level-dropdown unit-select" data-subj="' + subjKey + '" aria-label="단원 고르기"' + (disabled ? " disabled" : "") + ">";
@@ -2702,7 +2752,7 @@
         gBtns[gb2].addEventListener("click", function () {
           var chosenStage = this.getAttribute("data-stage");
           if (!window.stageHasContent(chosenStage) || chosenStage === state.gradeStage) return;
-          state.gradeStage = chosenStage;
+          chooseGradeStage(chosenStage);
           saveState();
           window.SoundFX.click();
           renderLevelScreen();
@@ -2720,7 +2770,7 @@
         gSel.innerHTML = oHtml + "</optgroup>";
         gSel.onchange = function () {
           if (!window.stageHasContent(this.value)) return;
-          state.gradeStage = this.value;
+          chooseGradeStage(this.value);
           saveState();
           window.SoundFX.click();
           renderLevelScreen();
@@ -2742,7 +2792,7 @@
       pHtml +=
         '<button type="button" class="preset-stage-card' + (isSel ? " selected" : "") + '" data-preset="' + pk + '">' +
         '<div class="preset-stage-title">' + def.title + "</div>" +
-        '<div class="preset-stage-desc">' + def.desc + "</div>" +
+        '<div class="preset-stage-desc">' + presetDescForStage(def, i) + "</div>" +
         "</button>";
     }
     presetRow.innerHTML = pHtml;
@@ -2757,6 +2807,13 @@
           state.subjectUnitIdx.math = d.unitIdx.math;
           state.subjectUnitIdx.english = d.unitIdx.english;
           state.subjectUnitIdx.hanja = d.unitIdx.hanja;
+          // 1학년 1학기가 아닌 단계에서는 단원 수가 다르므로 처음·가운데·끝 순서로 맞춘다
+          (window.GRADED_SUBJECTS || []).forEach(function (gk) {
+            if (getSubjectStage(gk) !== "g1a") {
+              var gLen = ((window.SUBJECT_UNITS || {})[gk] || []).length;
+              state.subjectUnitIdx[gk] = Math.max(0, Math.min(gLen - 1, pKeys.indexOf(chosen)));
+            }
+          });
           state.creativeDiff = d.creativeDiff;
           syncTiersFromUnits();
           saveState();
@@ -2772,7 +2829,7 @@
       var psHtml = state.presetId === "custom" ? '<option value="custom" selected>직접 고른 단원 (과목별로 정함)</option>' : "";
       for (var ps = 0; ps < pKeys.length; ps++) {
         var psDef = STAGE_PRESET_DEFS[pKeys[ps]];
-        psHtml += '<option value="' + pKeys[ps] + '"' + (state.presetId === pKeys[ps] ? " selected" : "") + ">" + psDef.title + " — " + psDef.desc + "</option>";
+        psHtml += '<option value="' + pKeys[ps] + '"' + (state.presetId === pKeys[ps] ? " selected" : "") + ">" + psDef.title + " — " + presetDescForStage(psDef, ps) + "</option>";
       }
       presetSel.innerHTML = psHtml;
       presetSel.onchange = function () {
@@ -3147,7 +3204,7 @@
       var recentLabel = recentLogs.length > 0
         ? ("최근 2주 정답률 " + Math.round((recentLogs.filter(function (a) { return a.correct; }).length / recentLogs.length) * 100) + "% (" + recentLogs.length + "문항)")
         : "최근 2주 기록 없음";
-      var colStage = (sk !== "hanja" && window.getGradeStage) ? window.getGradeStage(state.gradeStage) : null;
+      var colStage = (sk !== "hanja" && window.getGradeStage) ? window.getGradeStage(getSubjectStage(sk)) : null;
       if (colStage) recentLabel = colStage.label + " · " + recentLabel;
 
       var unitsHtml = "";
@@ -3881,7 +3938,7 @@
 
     // 일반 플레이 중 조작형 교구(3조각 한글 조합기 & 한자 획순 따라쓰기) 자연 출제!
     if (state.interactiveInputsOn) {
-      if (subj === "korean" && Math.random() < 0.45 && typeof window.generateHangulBuildQuestion === "function") {
+      if (subj === "korean" && usesBaseGenerators(subj) && Math.random() < 0.45 && typeof window.generateHangulBuildQuestion === "function") {
         return window.generateHangulBuildQuestion(cappedTier, specificUnitId);
       }
       if (subj === "hanja" && Math.random() < 0.45 && typeof window.generateHanjaTraceQuestion === "function") {
@@ -3902,7 +3959,7 @@
       }
     }
 
-    if (!specificUnitId && subj === "math") {
+    if (!specificUnitId && subj === "math" && usesBaseGenerators(subj)) {
       var rMath = Math.random();
       if (rMath < 0.55 && typeof window.generateDynamicVisualMath === "function") {
         return window.generateDynamicVisualMath(cappedTier);
@@ -3934,7 +3991,7 @@
 
     if (candidates.length === 0) {
       candidates = ALL_STATIC_QUESTIONS.filter(function (q) {
-        return (q.subject || q.category) === subj && (q.tier || 1) <= Math.max(cappedTier, 3);
+        return (q.subject || q.category) === subj && isQuestionInCurrentStage(q, subj) && (q.tier || 1) <= Math.max(cappedTier, 4);
       });
     }
 
@@ -4262,7 +4319,11 @@
       if (qBoxEl) qBoxEl.classList.remove("has-svg");
     }
 
-    document.getElementById("question-text").textContent = questionText;
+    var qTextEl = document.getElementById("question-text");
+    qTextEl.textContent = questionText;
+    // 첫 줄이 그림만 있는 문제(세어 보기 등)는 그 줄을 크게 보여 준다
+    var qFirstLine = String(questionText || "").split("\n")[0];
+    qTextEl.classList.toggle("has-picture-line", String(questionText || "").indexOf("\n") > 0 && !/[0-9A-Za-z가-힣ㄱ-ㅎㅏ-ㅣ]/.test(qFirstLine));
     document.getElementById("battle-feedback").textContent = feedbackMsg || "";
 
     var battleScreenEl = document.getElementById("screen-battle");
@@ -4314,6 +4375,8 @@
     var btns = grid.querySelectorAll(".choice-btn");
     for (var b = 0; b < btns.length; b++) {
       btns[b].querySelector(".choice-label").textContent = choices[b];
+      // 글자 없이 그림만 있는 보기는 크게 보여 준다
+      btns[b].classList.toggle("picture-choice", !/[0-9A-Za-z가-힣ㄱ-ㅎㅏ-ㅣ]/.test(String(choices[b])));
       btns[b].addEventListener("click", function () {
         handleChoiceSelect(Number(this.getAttribute("data-idx")));
       });

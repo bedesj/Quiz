@@ -4117,3 +4117,8 @@ img.offline-shiny-tint:not(.is-wild-silhouette) {
   #screen-level .unit-action-btn { flex: none; padding-left: 8px; padding-right: 8px; font-size: 13px; white-space: nowrap; }
   #screen-level .btn-subj-check { font-size: 0; }
 }
+
+/* 문제 글의 줄바꿈(그림 줄과 물음 줄)을 그대로 보여 준다 */
+.question-text { white-space: pre-line; }
+.question-text.has-picture-line::first-line { font-size: 2.1em; line-height: 1.25; }
+.choice-btn.picture-choice .choice-label { font-size: 1.9em; line-height: 1.1; letter-spacing: 1px; }
