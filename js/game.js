@@ -4586,6 +4586,72 @@
     };
   }
 
+  // ---------------- 4학년 평면도형의 이동 (밀기·뒤집기·돌리기) ----------------
+  // 처음 모양, 움직이는 방법, 결과 자리("?")를 그림으로 보여 준다. 그릴 수 없으면 null.
+  function buildAutoMove(quizObj, questionText) {
+    if (!isMathQuiz(quizObj) || quizObj.svg || quizObj.unit !== "mg4") return null;
+    var q = String(questionText || ""), W = 340, H = 168, INK = "#232538", FILL = "#8ec5ff", ACC = "#e8590c", GRID = "#dfe3ee", m, body = "";
+    var f1 = function (v) { return (Math.round(v * 10) / 10).toString(); };
+    var T = function (x, y, t, s, c, a) { return '<text x="' + f1(x) + '" y="' + f1(y) + '" text-anchor="' + (a || "middle") + '" font-size="' + (s || 12) + '" fill="' + (c || INK) + '">' + escapeHtmlText(t) + "</text>"; };
+    var poly = function (pts, fill, extra) { return '<polygon points="' + pts.map(function (p) { return f1(p[0]) + "," + f1(p[1]); }).join(" ") + '" fill="' + (fill || FILL) + '" stroke="' + INK + '" stroke-width="2" stroke-linejoin="round"' + (extra || "") + "/>"; };
+    // 모눈 상자 (가로 cols칸, 세로 rows칸)
+    var box = function (x, y, cols, rows, cell) {
+      var s = '<rect x="' + x + '" y="' + y + '" width="' + cols * cell + '" height="' + rows * cell + '" fill="#fbfcff" stroke="' + INK + '" stroke-width="1.5"/>';
+      for (var i = 1; i < cols; i++) s += '<line x1="' + (x + i * cell) + '" y1="' + y + '" x2="' + (x + i * cell) + '" y2="' + (y + rows * cell) + '" stroke="' + GRID + '" stroke-width="1"/>';
+      for (var j = 1; j < rows; j++) s += '<line x1="' + x + '" y1="' + (y + j * cell) + '" x2="' + (x + cols * cell) + '" y2="' + (y + j * cell) + '" stroke="' + GRID + '" stroke-width="1"/>';
+      return s;
+    };
+    var DIRS = { "↑": 0, "→": 90, "↓": 180, "←": 270 };
+    var arrowShape = function (cx, cy, deg) {
+      var base = [[0, -30], [22, -4], [9, -4], [9, 28], [-9, 28], [-9, -4], [-22, -4]], r = deg * Math.PI / 180;
+      return poly(base.map(function (p) { return [cx + p[0] * Math.cos(r) - p[1] * Math.sin(r), cy + p[0] * Math.sin(r) + p[1] * Math.cos(r)]; }));
+    };
+    var head = function (x, y, ang) { var r = ang * Math.PI / 180, c = Math.cos(r), s = Math.sin(r); return '<polygon points="' + [[9, 0], [-4, -6], [-4, 6]].map(function (p) { return f1(x + p[0] * c - p[1] * s) + "," + f1(y + p[0] * s + p[1] * c); }).join(" ") + '" fill="' + ACC + '"/>'; };
+    // 돌리기 표시: 둥근 화살표
+    var turnMark = function (cx, cy, clockwise, label) {
+      var r = 20, a0 = 150 * Math.PI / 180, a1 = 390 * Math.PI / 180, sx, sy, ex, ey, s;
+      if (clockwise) { sx = cx + r * Math.cos(a0); sy = cy + r * Math.sin(a0); ex = cx + r * Math.cos(a1); ey = cy + r * Math.sin(a1); s = '<path d="M' + f1(sx) + " " + f1(sy) + " A" + r + " " + r + " 0 1 1 " + f1(ex) + " " + f1(ey) + '" fill="none" stroke="' + ACC + '" stroke-width="3" stroke-linecap="round"/>' + head(ex - 1, ey + 3, 118); }
+      else { sx = cx + r * Math.cos(a1); sy = cy + r * Math.sin(a1); ex = cx + r * Math.cos(a0); ey = cy + r * Math.sin(a0); s = '<path d="M' + f1(sx) + " " + f1(sy) + " A" + r + " " + r + " 0 1 0 " + f1(ex) + " " + f1(ey) + '" fill="none" stroke="' + ACC + '" stroke-width="3" stroke-linecap="round"/>' + head(ex + 1, ey + 3, 62); }
+      return s + T(cx, cy + 46, label[0], 11, ACC) + T(cx, cy + 60, label[1], 11, ACC);
+    };
+    // 뒤집기 표시: 곧은 화살표
+    var flipMark = function (cx, cy, dir, label) {
+      var v = { "오른쪽": [1, 0, 0], "왼쪽": [-1, 0, 180], "위쪽": [0, -1, 270], "아래쪽": [0, 1, 90] }[dir], L = 20;
+      return '<line x1="' + f1(cx - v[0] * L) + '" y1="' + f1(cy - v[1] * L) + '" x2="' + f1(cx + v[0] * (L - 6)) + '" y2="' + f1(cy + v[1] * (L - 6)) + '" stroke="' + ACC + '" stroke-width="3.4" stroke-linecap="round"/>' + head(cx + v[0] * L, cy + v[1] * L, v[2]) + T(cx, cy + 46, label[0], 11, ACC) + T(cx, cy + 60, label[1], 11, ACC);
+    };
+    var LX = 18, RX = 232, BY = 34, CELL = 30, MX = 170, MY = 70;
+    var frame = function (leftInner, mark) {
+      return T(LX + 45, 24, "처음 모양", 11, "#555b70") + T(RX + 45, 24, "움직인 모양", 11, "#555b70") + box(LX, BY, 3, 3, CELL) + box(RX, BY, 3, 3, CELL) + leftInner + mark + T(RX + 45, BY + 58, "?", 34, ACC);
+    };
+    // 한쪽에 깃발이 달린 모양 (좌우·위아래가 모두 다른 도형)
+    var flagPts = function (cx, cy, fx, fy) { return [[-18, -30], [18, -30], [18, -10], [-4, -10], [-4, 30], [-18, 30]].map(function (p) { return [cx + p[0] * fx, cy + p[1] * fy]; }); };
+
+    if ((m = q.match(/^화살표 ([↑→↓←])를 시계 (반대 )?방향으로 (90|180|270|360)°만큼 돌리면/))) {
+      body = frame(arrowShape(LX + 45, BY + 45, DIRS[m[1]]), turnMark(MX, MY, !m[2], [m[2] ? "시계 반대 방향" : "시계 방향", m[3] + "° 돌리기"]));
+    } else if ((m = q.match(/^화살표 ([↑→↓←])를 (오른쪽|왼쪽|위쪽|아래쪽)으로 뒤집으면/))) {
+      body = frame(arrowShape(LX + 45, BY + 45, DIRS[m[1]]), flipMark(MX, MY, m[2], [m[2] + "으로", "뒤집기"]));
+    } else if (/^숫자 6을 시계 방향으로 180°만큼 돌리면/.test(q)) {
+      body = frame(T(LX + 45, BY + 68, "6", 64), turnMark(MX, MY, true, ["시계 방향", "180° 돌리기"]));
+    } else if ((m = q.match(/^도형을 (오른쪽|위쪽)으로 뒤집으면 어떻게 될까요/))) {
+      var right = m[1] === "오른쪽";
+      body = T(LX + 45, 24, "처음 모양", 11, "#555b70") + T(RX + 45, 24, "뒤집은 모양", 11, "#555b70") + box(LX, BY, 3, 3, CELL) + box(RX, BY, 3, 3, CELL) + poly(flagPts(LX + 45, BY + 45, 1, 1)) + poly(flagPts(RX + 45, BY + 45, right ? -1 : 1, right ? 1 : -1), "#ffd9a8") + flipMark(MX, MY, m[1], [m[1] + "으로", "뒤집기"]);
+    } else if ((m = q.match(/^도형을 위쪽으로 (\d+) cm, 오른쪽으로 (\d+) cm 밀었어요/))) {
+      var up = Number(m[1]), rt = Number(m[2]), c2 = 13, cols = 20, rows = 10, gx = (W - cols * c2) / 2, gy = 26;
+      if (up > 7 || rt > 14 || up < 1 || rt < 1) return null;
+      var ox = gx + c2 * 2, oy = gy + c2 * (rows - 1), sh = function (dx, dy) { return [[0, 0], [2, 0], [2, -1], [1, -1], [1, -2], [0, -2]].map(function (p) { return [ox + (p[0] + dx) * c2, oy + (p[1] - dy) * c2]; }); };
+      body = T(W / 2, 18, "모눈 한 칸은 1 cm", 10, "#555b70") + box(gx, gy, cols, rows, c2) + poly(sh(0, 0), "#e3e7f0", ' stroke-dasharray="4 3"') + poly(sh(rt, up), FILL);
+      var ax = ox, ay0 = oy, ay1 = ay0 - up * c2;
+      body += '<path d="M' + f1(ax) + " " + f1(ay0) + " L" + f1(ax) + " " + f1(ay1) + " L" + f1(ax + rt * c2 - 8) + " " + f1(ay1) + '" fill="none" stroke="' + ACC + '" stroke-width="2.4" stroke-dasharray="5 3"/>' + head(ax + rt * c2 - 6, ay1, 0);
+      body += '<circle cx="' + f1(ax) + '" cy="' + f1(ay0) + '" r="3" fill="' + ACC + '"/>' + T(ax + 6, (ay0 + ay1) / 2 + 2, "위로 " + up + " cm", 10, ACC, "start") + T(gx + cols * c2 - 6, gy + rows * c2 - 8, "오른쪽으로 " + rt + " cm", 10, ACC, "end");
+    } else {
+      return null;
+    }
+    return {
+      svg: '<svg viewBox="0 0 ' + W + " " + H + '" xmlns="http://www.w3.org/2000/svg" role="img" font-family="inherit" font-weight="700"><rect x="0" y="0" width="' + W + '" height="' + H + '" rx="10" fill="#ffffff" stroke="' + INK + '" stroke-width="2"/>' + body + "</svg>",
+      text: questionText
+    };
+  }
+
   function buildAutoChart(quizObj, questionText) {
     if (!isMathQuiz(quizObj) || quizObj.svg) return null;
     var kind = AUTO_CHART_UNITS[quizObj.unit];
@@ -4645,7 +4711,7 @@
   }
 
   function renderQuestionAndChoices(catMeta, questionText, choices, disabledIndices, feedbackMsg, quizObj) {
-    var autoChart = buildAutoChart(quizObj, questionText) || buildAutoPicto(quizObj, questionText) || buildAutoShape(quizObj, questionText);
+    var autoChart = buildAutoChart(quizObj, questionText) || buildAutoPicto(quizObj, questionText) || buildAutoMove(quizObj, questionText) || buildAutoShape(quizObj, questionText);
     if (autoChart) questionText = autoChart.text;
     var catTag = document.getElementById("question-category-tag");
     var tierSuffix = (quizObj && quizObj.tier) ? (" · T" + quizObj.tier) : "";
