@@ -1460,12 +1460,13 @@ html, body {
   pointer-events: none;
 }
 
+/* 던지는 공 색: 기본은 빨강·하양, 황금 배틀은 검정·하양, 복습 배틀은 보라·하양 */
 .throw-ball.gold-ball {
-  background: linear-gradient(180deg, #ffd43b 0 47%, #232538 47% 54%, #fff9db 54% 100%);
+  background: linear-gradient(180deg, #2b2d42 0 47%, #232538 47% 54%, #ffffff 54% 100%);
 }
 
 .throw-ball.review-ball {
-  background: linear-gradient(180deg, #26c6da 0 47%, #232538 47% 54%, #ffffff 54% 100%);
+  background: linear-gradient(180deg, #8e44d6 0 47%, #232538 47% 54%, #ffffff 54% 100%);
 }
 
 .throw-ball.anim-throw {
