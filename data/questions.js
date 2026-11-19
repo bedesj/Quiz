@@ -3077,7 +3077,7 @@ window.QUIZ_BANK = {
       "tier": 1,
       "domain": "이해력",
       "pokeType": "물",
-      "question": "수 순서대로 빈칸에 들어갈 숫자는 무엇일까요?\n4 → 5 → ( ? ) → 7",
+      "question": "수 띠에서 빈칸(?)에 들어갈 알맞은 숫자는 무엇일까요?",
       "choices": [
         "6",
         "8",
@@ -3086,8 +3086,9 @@ window.QUIZ_BANK = {
       ],
       "answer": "6",
       "hint": "5보다 1 큰 수이자 7 바로 앞의 수는 6이에요!",
-      "ttsKo": "수 순서대로 빈칸에 들어갈 숫자는 무엇일까요?\n4 다음 5 다음 빈칸 다음 7",
-      "ttsEn": ""
+      "ttsKo": "수 띠에서 빈칸(?)에 들어갈 알맞은 숫자는 무엇일까요?",
+      "ttsEn": "",
+      "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 380 68\" role=\"img\" aria-label=\"1부터 9까지의 수 띠\"><rect x=\"4\" y=\"4\" width=\"372\" height=\"60\" rx=\"14\" fill=\"#F8FAFC\" stroke=\"#CBD5E1\" stroke-width=\"1.5\"/><rect x=\"14\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#232538\" stroke-width=\"2\"/><text x=\"33.5\" y=\"44\" text-anchor=\"middle\" font-size=\"15\" font-weight=\"900\" fill=\"#64748B\">1</text><rect x=\"53\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#232538\" stroke-width=\"2\"/><text x=\"72.5\" y=\"44\" text-anchor=\"middle\" font-size=\"15\" font-weight=\"900\" fill=\"#64748B\">2</text><rect x=\"92\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#232538\" stroke-width=\"2\"/><text x=\"111.5\" y=\"44\" text-anchor=\"middle\" font-size=\"15\" font-weight=\"900\" fill=\"#64748B\">3</text><rect x=\"131\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#74C0FC\" stroke=\"#232538\" stroke-width=\"2.8\"/><text x=\"150.5\" y=\"44\" text-anchor=\"middle\" font-size=\"20\" font-weight=\"900\" fill=\"#0B3C5D\">4</text><circle cx=\"150.5\" cy=\"11\" r=\"4.2\" fill=\"#FF6B6B\" stroke=\"#232538\" stroke-width=\"1.5\"/><rect x=\"170\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#74C0FC\" stroke=\"#232538\" stroke-width=\"2.8\"/><text x=\"189.5\" y=\"44\" text-anchor=\"middle\" font-size=\"20\" font-weight=\"900\" fill=\"#0B3C5D\">5</text><circle cx=\"189.5\" cy=\"11\" r=\"4.2\" fill=\"#FF6B6B\" stroke=\"#232538\" stroke-width=\"1.5\"/><rect x=\"209\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#FFD43B\" stroke=\"#232538\" stroke-width=\"2.8\"/><text x=\"228.5\" y=\"44\" text-anchor=\"middle\" font-size=\"20\" font-weight=\"900\" fill=\"#D9480F\">?</text><rect x=\"248\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#74C0FC\" stroke=\"#232538\" stroke-width=\"2.8\"/><text x=\"267.5\" y=\"44\" text-anchor=\"middle\" font-size=\"20\" font-weight=\"900\" fill=\"#0B3C5D\">7</text><circle cx=\"267.5\" cy=\"11\" r=\"4.2\" fill=\"#FF6B6B\" stroke=\"#232538\" stroke-width=\"1.5\"/><rect x=\"287\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#232538\" stroke-width=\"2\"/><text x=\"306.5\" y=\"44\" text-anchor=\"middle\" font-size=\"15\" font-weight=\"900\" fill=\"#64748B\">8</text><rect x=\"326\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#232538\" stroke-width=\"2\"/><text x=\"345.5\" y=\"44\" text-anchor=\"middle\" font-size=\"15\" font-weight=\"900\" fill=\"#64748B\">9</text></svg>"
     },
     {
       "id": "math_f05",
@@ -3097,7 +3098,7 @@ window.QUIZ_BANK = {
       "tier": 1,
       "domain": "추론력",
       "pokeType": "에스퍼",
-      "question": "다음 숫자 중에서 가장 큰 수는 무엇일까요?",
+      "question": "수 띠에 색칠된 숫자(4, 6, 8, 9) 중에서 가장 큰 수는 무엇일까요?",
       "choices": [
         "9",
         "6",
@@ -3105,9 +3106,10 @@ window.QUIZ_BANK = {
         "4"
       ],
       "answer": "9",
-      "hint": "한 자리 수 가운데 9가 가장 큰 수예요!",
-      "ttsKo": "다음 숫자 중에서 가장 큰 수는 무엇일까요?",
-      "ttsEn": ""
+      "hint": "수 띠에서 가장 오른쪽에 색칠된 숫자 9가 제일 큰 수예요!",
+      "ttsKo": "수 띠에 색칠된 숫자(4, 6, 8, 9) 중에서 가장 큰 수는 무엇일까요?",
+      "ttsEn": "",
+      "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 380 68\" role=\"img\" aria-label=\"1부터 9까지의 수 띠\"><rect x=\"4\" y=\"4\" width=\"372\" height=\"60\" rx=\"14\" fill=\"#F8FAFC\" stroke=\"#CBD5E1\" stroke-width=\"1.5\"/><rect x=\"14\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#232538\" stroke-width=\"2\"/><text x=\"33.5\" y=\"44\" text-anchor=\"middle\" font-size=\"15\" font-weight=\"900\" fill=\"#64748B\">1</text><rect x=\"53\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#232538\" stroke-width=\"2\"/><text x=\"72.5\" y=\"44\" text-anchor=\"middle\" font-size=\"15\" font-weight=\"900\" fill=\"#64748B\">2</text><rect x=\"92\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#232538\" stroke-width=\"2\"/><text x=\"111.5\" y=\"44\" text-anchor=\"middle\" font-size=\"15\" font-weight=\"900\" fill=\"#64748B\">3</text><rect x=\"131\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#74C0FC\" stroke=\"#232538\" stroke-width=\"2.8\"/><text x=\"150.5\" y=\"44\" text-anchor=\"middle\" font-size=\"20\" font-weight=\"900\" fill=\"#0B3C5D\">4</text><circle cx=\"150.5\" cy=\"11\" r=\"4.2\" fill=\"#FF6B6B\" stroke=\"#232538\" stroke-width=\"1.5\"/><rect x=\"170\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#232538\" stroke-width=\"2\"/><text x=\"189.5\" y=\"44\" text-anchor=\"middle\" font-size=\"15\" font-weight=\"900\" fill=\"#64748B\">5</text><rect x=\"209\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#74C0FC\" stroke=\"#232538\" stroke-width=\"2.8\"/><text x=\"228.5\" y=\"44\" text-anchor=\"middle\" font-size=\"20\" font-weight=\"900\" fill=\"#0B3C5D\">6</text><circle cx=\"228.5\" cy=\"11\" r=\"4.2\" fill=\"#FF6B6B\" stroke=\"#232538\" stroke-width=\"1.5\"/><rect x=\"248\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#232538\" stroke-width=\"2\"/><text x=\"267.5\" y=\"44\" text-anchor=\"middle\" font-size=\"15\" font-weight=\"900\" fill=\"#64748B\">7</text><rect x=\"287\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#74C0FC\" stroke=\"#232538\" stroke-width=\"2.8\"/><text x=\"306.5\" y=\"44\" text-anchor=\"middle\" font-size=\"20\" font-weight=\"900\" fill=\"#0B3C5D\">8</text><circle cx=\"306.5\" cy=\"11\" r=\"4.2\" fill=\"#FF6B6B\" stroke=\"#232538\" stroke-width=\"1.5\"/><rect x=\"326\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#74C0FC\" stroke=\"#232538\" stroke-width=\"2.8\"/><text x=\"345.5\" y=\"44\" text-anchor=\"middle\" font-size=\"20\" font-weight=\"900\" fill=\"#0B3C5D\">9</text><circle cx=\"345.5\" cy=\"11\" r=\"4.2\" fill=\"#FF6B6B\" stroke=\"#232538\" stroke-width=\"1.5\"/></svg>"
     },
     {
       "id": "math_f06",
@@ -3117,7 +3119,7 @@ window.QUIZ_BANK = {
       "tier": 1,
       "domain": "추론력",
       "pokeType": "에스퍼",
-      "question": "다음 숫자 중에서 가장 작은 수는 무엇일까요?",
+      "question": "수 띠에 색칠된 숫자(2, 5, 7, 9) 중에서 가장 작은 수는 무엇일까요?",
       "choices": [
         "2",
         "5",
@@ -3125,9 +3127,10 @@ window.QUIZ_BANK = {
         "9"
       ],
       "answer": "2",
-      "hint": "수 띠에서 가장 왼쪽에 있는 2가 제일 작아요!",
-      "ttsKo": "다음 숫자 중에서 가장 작은 수는 무엇일까요?",
-      "ttsEn": ""
+      "hint": "수 띠에서 가장 왼쪽에 색칠된 숫자 2가 제일 작은 수예요!",
+      "ttsKo": "수 띠에 색칠된 숫자(2, 5, 7, 9) 중에서 가장 작은 수는 무엇일까요?",
+      "ttsEn": "",
+      "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 380 68\" role=\"img\" aria-label=\"1부터 9까지의 수 띠\"><rect x=\"4\" y=\"4\" width=\"372\" height=\"60\" rx=\"14\" fill=\"#F8FAFC\" stroke=\"#CBD5E1\" stroke-width=\"1.5\"/><rect x=\"14\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#232538\" stroke-width=\"2\"/><text x=\"33.5\" y=\"44\" text-anchor=\"middle\" font-size=\"15\" font-weight=\"900\" fill=\"#64748B\">1</text><rect x=\"53\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#74C0FC\" stroke=\"#232538\" stroke-width=\"2.8\"/><text x=\"72.5\" y=\"44\" text-anchor=\"middle\" font-size=\"20\" font-weight=\"900\" fill=\"#0B3C5D\">2</text><circle cx=\"72.5\" cy=\"11\" r=\"4.2\" fill=\"#FF6B6B\" stroke=\"#232538\" stroke-width=\"1.5\"/><rect x=\"92\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#232538\" stroke-width=\"2\"/><text x=\"111.5\" y=\"44\" text-anchor=\"middle\" font-size=\"15\" font-weight=\"900\" fill=\"#64748B\">3</text><rect x=\"131\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#232538\" stroke-width=\"2\"/><text x=\"150.5\" y=\"44\" text-anchor=\"middle\" font-size=\"15\" font-weight=\"900\" fill=\"#64748B\">4</text><rect x=\"170\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#74C0FC\" stroke=\"#232538\" stroke-width=\"2.8\"/><text x=\"189.5\" y=\"44\" text-anchor=\"middle\" font-size=\"20\" font-weight=\"900\" fill=\"#0B3C5D\">5</text><circle cx=\"189.5\" cy=\"11\" r=\"4.2\" fill=\"#FF6B6B\" stroke=\"#232538\" stroke-width=\"1.5\"/><rect x=\"209\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#232538\" stroke-width=\"2\"/><text x=\"228.5\" y=\"44\" text-anchor=\"middle\" font-size=\"15\" font-weight=\"900\" fill=\"#64748B\">6</text><rect x=\"248\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#74C0FC\" stroke=\"#232538\" stroke-width=\"2.8\"/><text x=\"267.5\" y=\"44\" text-anchor=\"middle\" font-size=\"20\" font-weight=\"900\" fill=\"#0B3C5D\">7</text><circle cx=\"267.5\" cy=\"11\" r=\"4.2\" fill=\"#FF6B6B\" stroke=\"#232538\" stroke-width=\"1.5\"/><rect x=\"287\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#232538\" stroke-width=\"2\"/><text x=\"306.5\" y=\"44\" text-anchor=\"middle\" font-size=\"15\" font-weight=\"900\" fill=\"#64748B\">8</text><rect x=\"326\" y=\"18\" width=\"39\" height=\"40\" rx=\"6\" fill=\"#74C0FC\" stroke=\"#232538\" stroke-width=\"2.8\"/><text x=\"345.5\" y=\"44\" text-anchor=\"middle\" font-size=\"20\" font-weight=\"900\" fill=\"#0B3C5D\">9</text><circle cx=\"345.5\" cy=\"11\" r=\"4.2\" fill=\"#FF6B6B\" stroke=\"#232538\" stroke-width=\"1.5\"/></svg>"
     },
     {
       "id": "math_f07",
@@ -3637,7 +3640,7 @@ window.QUIZ_BANK = {
       "tier": 7,
       "domain": "추론력",
       "pokeType": "에스퍼",
-      "question": "2씩 뛰어 세기를 해 보세요! 빈칸에 알맞은 수는?\n12 → 14 → 16 → ( ? ) → 20",
+      "question": "수 띠에서 2씩 뛰어 세기를 할 때 빈칸(?)에 알맞은 수는?",
       "choices": [
         "18",
         "17",
@@ -3646,8 +3649,9 @@ window.QUIZ_BANK = {
       ],
       "answer": "18",
       "hint": "16에서 2만큼 더 뛰어 세면 18이에요!",
-      "ttsKo": "2씩 뛰어 세기를 해 보세요! 빈칸에 알맞은 수는?\n12 다음 14 다음 16 다음 빈칸 다음 20",
-      "ttsEn": ""
+      "ttsKo": "수 띠에서 2씩 뛰어 세기를 할 때 빈칸(?)에 알맞은 수는?",
+      "ttsEn": "",
+      "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 380 76\" role=\"img\" aria-label=\"뛰어 세기 수 띠\"><rect x=\"4\" y=\"4\" width=\"372\" height=\"68\" rx=\"14\" fill=\"#FFFDF5\" stroke=\"#E2E8F0\" stroke-width=\"1.5\"/><rect x=\"23.0\" y=\"28\" width=\"54\" height=\"38\" rx=\"9\" fill=\"#E7F5FF\" stroke=\"#232538\" stroke-width=\"2.5\"/><text x=\"50.0\" y=\"53\" text-anchor=\"middle\" font-size=\"18\" font-weight=\"900\" fill=\"#1E293B\">12</text><path d=\"M61.9,25 Q85.0,8 108.1,25\" fill=\"none\" stroke=\"#FA5252\" stroke-width=\"2.2\"/><text x=\"85.0\" y=\"17\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"900\" fill=\"#C92A2A\">+2</text><rect x=\"93.0\" y=\"28\" width=\"54\" height=\"38\" rx=\"9\" fill=\"#E7F5FF\" stroke=\"#232538\" stroke-width=\"2.5\"/><text x=\"120.0\" y=\"53\" text-anchor=\"middle\" font-size=\"18\" font-weight=\"900\" fill=\"#1E293B\">14</text><path d=\"M131.9,25 Q155.0,8 178.1,25\" fill=\"none\" stroke=\"#FA5252\" stroke-width=\"2.2\"/><text x=\"155.0\" y=\"17\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"900\" fill=\"#C92A2A\">+2</text><rect x=\"163.0\" y=\"28\" width=\"54\" height=\"38\" rx=\"9\" fill=\"#E7F5FF\" stroke=\"#232538\" stroke-width=\"2.5\"/><text x=\"190.0\" y=\"53\" text-anchor=\"middle\" font-size=\"18\" font-weight=\"900\" fill=\"#1E293B\">16</text><path d=\"M201.9,25 Q225.0,8 248.1,25\" fill=\"none\" stroke=\"#FA5252\" stroke-width=\"2.2\"/><text x=\"225.0\" y=\"17\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"900\" fill=\"#C92A2A\">+2</text><rect x=\"233.0\" y=\"28\" width=\"54\" height=\"38\" rx=\"9\" fill=\"#FFD43B\" stroke=\"#232538\" stroke-width=\"2.5\"/><text x=\"260.0\" y=\"53\" text-anchor=\"middle\" font-size=\"18\" font-weight=\"900\" fill=\"#D9480F\">?</text><path d=\"M271.9,25 Q295.0,8 318.1,25\" fill=\"none\" stroke=\"#FA5252\" stroke-width=\"2.2\"/><text x=\"295.0\" y=\"17\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"900\" fill=\"#C92A2A\">+2</text><rect x=\"303.0\" y=\"28\" width=\"54\" height=\"38\" rx=\"9\" fill=\"#E7F5FF\" stroke=\"#232538\" stroke-width=\"2.5\"/><text x=\"330.0\" y=\"53\" text-anchor=\"middle\" font-size=\"18\" font-weight=\"900\" fill=\"#1E293B\">20</text></svg>"
     },
     {
       "id": "math_f33",
@@ -3657,7 +3661,7 @@ window.QUIZ_BANK = {
       "tier": 7,
       "domain": "추론력",
       "pokeType": "에스퍼",
-      "question": "10씩 뛰어 세기를 해 보세요! 빈칸에 알맞은 수는?\n10 → 20 → 30 → ( ? ) → 50",
+      "question": "수 띠에서 10씩 뛰어 세기를 할 때 빈칸(?)에 알맞은 수는?",
       "choices": [
         "40",
         "35",
@@ -3666,8 +3670,9 @@ window.QUIZ_BANK = {
       ],
       "answer": "40",
       "hint": "10씩 커지므로 30 다음은 40이에요!",
-      "ttsKo": "10씩 뛰어 세기를 해 보세요! 빈칸에 알맞은 수는?\n10 다음 20 다음 30 다음 빈칸 다음 50",
-      "ttsEn": ""
+      "ttsKo": "수 띠에서 10씩 뛰어 세기를 할 때 빈칸(?)에 알맞은 수는?",
+      "ttsEn": "",
+      "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 380 76\" role=\"img\" aria-label=\"뛰어 세기 수 띠\"><rect x=\"4\" y=\"4\" width=\"372\" height=\"68\" rx=\"14\" fill=\"#FFFDF5\" stroke=\"#E2E8F0\" stroke-width=\"1.5\"/><rect x=\"23.0\" y=\"28\" width=\"54\" height=\"38\" rx=\"9\" fill=\"#E7F5FF\" stroke=\"#232538\" stroke-width=\"2.5\"/><text x=\"50.0\" y=\"53\" text-anchor=\"middle\" font-size=\"18\" font-weight=\"900\" fill=\"#1E293B\">10</text><path d=\"M61.9,25 Q85.0,8 108.1,25\" fill=\"none\" stroke=\"#FA5252\" stroke-width=\"2.2\"/><text x=\"85.0\" y=\"17\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"900\" fill=\"#C92A2A\">+10</text><rect x=\"93.0\" y=\"28\" width=\"54\" height=\"38\" rx=\"9\" fill=\"#E7F5FF\" stroke=\"#232538\" stroke-width=\"2.5\"/><text x=\"120.0\" y=\"53\" text-anchor=\"middle\" font-size=\"18\" font-weight=\"900\" fill=\"#1E293B\">20</text><path d=\"M131.9,25 Q155.0,8 178.1,25\" fill=\"none\" stroke=\"#FA5252\" stroke-width=\"2.2\"/><text x=\"155.0\" y=\"17\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"900\" fill=\"#C92A2A\">+10</text><rect x=\"163.0\" y=\"28\" width=\"54\" height=\"38\" rx=\"9\" fill=\"#E7F5FF\" stroke=\"#232538\" stroke-width=\"2.5\"/><text x=\"190.0\" y=\"53\" text-anchor=\"middle\" font-size=\"18\" font-weight=\"900\" fill=\"#1E293B\">30</text><path d=\"M201.9,25 Q225.0,8 248.1,25\" fill=\"none\" stroke=\"#FA5252\" stroke-width=\"2.2\"/><text x=\"225.0\" y=\"17\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"900\" fill=\"#C92A2A\">+10</text><rect x=\"233.0\" y=\"28\" width=\"54\" height=\"38\" rx=\"9\" fill=\"#FFD43B\" stroke=\"#232538\" stroke-width=\"2.5\"/><text x=\"260.0\" y=\"53\" text-anchor=\"middle\" font-size=\"18\" font-weight=\"900\" fill=\"#D9480F\">?</text><path d=\"M271.9,25 Q295.0,8 318.1,25\" fill=\"none\" stroke=\"#FA5252\" stroke-width=\"2.2\"/><text x=\"295.0\" y=\"17\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"900\" fill=\"#C92A2A\">+10</text><rect x=\"303.0\" y=\"28\" width=\"54\" height=\"38\" rx=\"9\" fill=\"#E7F5FF\" stroke=\"#232538\" stroke-width=\"2.5\"/><text x=\"330.0\" y=\"53\" text-anchor=\"middle\" font-size=\"18\" font-weight=\"900\" fill=\"#1E293B\">50</text></svg>"
     },
     {
       "id": "math_f34",
@@ -3677,7 +3682,7 @@ window.QUIZ_BANK = {
       "tier": 8,
       "domain": "추론력",
       "pokeType": "에스퍼",
-      "question": "다음 수 중에서 가장 큰 수는 무엇일까요?",
+      "question": "수 띠 카드(39, 48, 29, 42) 중에서 가장 큰 수는 무엇일까요?",
       "choices": [
         "48",
         "39",
@@ -3686,8 +3691,9 @@ window.QUIZ_BANK = {
       ],
       "answer": "48",
       "hint": "먼저 10개씩 묶음 수가 4개인 48과 42를 비교하면 낱개가 8개인 48이 제일 커요!",
-      "ttsKo": "다음 수 중에서 가장 큰 수는 무엇일까요?",
-      "ttsEn": ""
+      "ttsKo": "수 띠 카드(39, 48, 29, 42) 중에서 가장 큰 수는 무엇일까요?",
+      "ttsEn": "",
+      "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 380 72\" role=\"img\" aria-label=\"두 자리 수 비교 수 띠\"><rect x=\"6\" y=\"6\" width=\"368\" height=\"60\" rx=\"14\" fill=\"#F1F5F9\" stroke=\"#94A3B8\" stroke-width=\"1.5\"/><rect x=\"21.0\" y=\"13\" width=\"74\" height=\"46\" rx=\"10\" fill=\"#FFD8A8\" stroke=\"#232538\" stroke-width=\"2.5\"/><text x=\"58.0\" y=\"38\" text-anchor=\"middle\" font-size=\"20\" font-weight=\"900\" fill=\"#1E293B\">39</text><text x=\"58.0\" y=\"53\" text-anchor=\"middle\" font-size=\"10\" font-weight=\"900\" fill=\"#475569\">10묶음 ●●●</text><rect x=\"109.0\" y=\"13\" width=\"74\" height=\"46\" rx=\"10\" fill=\"#A5D8FF\" stroke=\"#232538\" stroke-width=\"2.5\"/><text x=\"146.0\" y=\"38\" text-anchor=\"middle\" font-size=\"20\" font-weight=\"900\" fill=\"#1E293B\">48</text><text x=\"146.0\" y=\"53\" text-anchor=\"middle\" font-size=\"10\" font-weight=\"900\" fill=\"#475569\">10묶음 ●●●●</text><rect x=\"197.0\" y=\"13\" width=\"74\" height=\"46\" rx=\"10\" fill=\"#D3F9D8\" stroke=\"#232538\" stroke-width=\"2.5\"/><text x=\"234.0\" y=\"38\" text-anchor=\"middle\" font-size=\"20\" font-weight=\"900\" fill=\"#1E293B\">29</text><text x=\"234.0\" y=\"53\" text-anchor=\"middle\" font-size=\"10\" font-weight=\"900\" fill=\"#475569\">10묶음 ●●</text><rect x=\"285.0\" y=\"13\" width=\"74\" height=\"46\" rx=\"10\" fill=\"#FCC2D7\" stroke=\"#232538\" stroke-width=\"2.5\"/><text x=\"322.0\" y=\"38\" text-anchor=\"middle\" font-size=\"20\" font-weight=\"900\" fill=\"#1E293B\">42</text><text x=\"322.0\" y=\"53\" text-anchor=\"middle\" font-size=\"10\" font-weight=\"900\" fill=\"#475569\">10묶음 ●●●●</text></svg>"
     },
     {
       "id": "math_f35",

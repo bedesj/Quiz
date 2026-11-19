@@ -3176,3 +3176,806 @@ img.offline-shiny-tint:not(.is-wild-silhouette) {
   border-color: #d9480f;
   color: #c92a2a;
 }
+
+/* === 1-Row Horizontal Touch Slider Top Bar & SVG Strip Styles === */
+/* 수 띠(Number Strip) 및 시각 교구 SVG가 모바일 세로·가로에서도 또렷하고 크게 보이도록 보장 */
+.question-svg-stage {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 2px 0 4px;
+}
+.question-svg-stage.hidden {
+  display: none !important;
+}
+.question-svg-stage svg {
+  width: 100%;
+  max-width: 430px;
+  height: auto;
+  max-height: 92px;
+  display: block;
+}
+
+/* 상단 바(#main-top-bar): 2열 줄바꿈 없이 한 줄 가로 스와이프 슬라이더! */
+#main-top-bar.top-bar {
+  height: 48px !important;
+  min-height: 48px !important;
+  max-height: 52px !important;
+  padding: 0 10px !important;
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: space-between;
+  gap: 6px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  touch-action: pan-x;
+  user-select: none;
+}
+#main-top-bar.top-bar.hidden {
+  display: none !important;
+}
+#main-top-bar.top-bar::-webkit-scrollbar {
+  display: none;
+}
+
+#main-top-bar .top-left,
+#main-top-bar .top-center,
+#main-top-bar .top-right {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  flex: 0 0 auto !important;
+  flex-basis: auto !important;
+  width: auto !important;
+  max-width: none !important;
+  border-bottom: none !important;
+  padding: 0 !important;
+  gap: 6px !important;
+}
+
+#main-top-bar .top-center {
+  order: 0 !important;
+  background: #fff9db;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  padding: 3px 11px !important;
+  font-size: 13.5px !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+}
+
+/* 세로모드 및 태블릿·모바일 폭(<= 1040px): 제목 배지를 맨 앞에 두고 오른쪽으로 부드럽게 미는 1줄 슬라이더! */
+@media (orientation: portrait), (max-width: 1040px) {
+  #main-top-bar.top-bar {
+    justify-content: flex-start !important;
+    padding: 0 12px !important;
+  }
+  #main-top-bar .top-center {
+    order: -1 !important;
+  }
+  #main-top-bar .nav-btn {
+    flex-shrink: 0 !important;
+    padding: 5px 10px !important;
+    font-size: 12.5px !important;
+    white-space: nowrap !important;
+  }
+}
+
+@media (max-height: 540px) and (orientation: landscape) {
+  #main-top-bar.top-bar {
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+  #main-top-bar .top-center {
+    padding: 2px 9px !important;
+    font-size: 12px !important;
+  }
+  #main-top-bar .nav-btn {
+    padding: 3px 8px !important;
+    font-size: 11px !important;
+  }
+}
+
+/* 도감 상단 필터 탭도 2줄 줄바꿈 대신 한 줄 가로 슬라이더 지원 */
+.pokedex-toolbar .filter-tabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  touch-action: pan-x;
+  max-width: 100%;
+  padding-bottom: 2px;
+}
+.pokedex-toolbar .filter-tabs::-webkit-scrollbar {
+  display: none;
+}
+.pokedex-toolbar .filter-btn,
+.pokedex-toolbar .gen-select {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* === V6 Classic Pokemon 4-Quadrant Battle & Partner System === */
+.corner-pill-btn.partner-pill,
+.btn-partner-nav,
+.btn-partner-set {
+  background: linear-gradient(90deg, #fff3bf 0%, #ffd8a8 100%);
+  font-weight: 900;
+}
+
+.btn-partner-set.is-active-partner {
+  background: linear-gradient(90deg, #ffe066 0%, #fcc419 100%);
+  box-shadow: 0 3px 0 var(--ink);
+}
+
+/* 도감 카드 위 현재 파트너 배지 */
+.dex-partner-ribbon {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  background: #ffd43b;
+  color: #232538;
+  border: 2px solid #232538;
+  border-radius: 999px;
+  padding: 1px 6px;
+  font-size: 10.5px;
+  font-weight: 900;
+  z-index: 3;
+  box-shadow: 0 2px 0 rgba(35, 37, 56, 0.22);
+}
+
+/* ==========================================================================
+   정통 포켓몬 배틀 화면 (GBA/HGSS/애니메이션 감성 초원 배틀 필드 + 4사분면 대각선 구도)
+   - 좌측 상단: 조우한 야생 포켓몬 이름 · 도감마크 · 포획률 게이지
+   - 우측 상단: 조우한 야생 포켓몬 + 원경 잔디 발판
+   - 좌측 하단: 내 파트너 포켓몬 뒷모습 + 근경 잔디 발판
+   - 우측 하단: 파트너 포켓몬 이름 + 남은 하트 수
+   ========================================================================== */
+#pokemon-stage-card.classic-battle-arena {
+  padding: clamp(8px, 1.3vh, 14px) clamp(10px, 1.8vw, 18px) !important;
+  display: block !important;
+  overflow: hidden !important;
+  position: relative;
+  min-height: 205px;
+  /* 정통 포켓몬 초원 배틀 배경: 푸른 하늘 + 구름광 + 지평선 숲 실루엣 + 연초록 배틀 잔디 */
+  background:
+    radial-gradient(ellipse 68% 26% at 75% 22%, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0) 100%),
+    linear-gradient(180deg,
+      #74c0fc 0%,
+      #a5d8ff 38%,
+      #d8f5a2 42%,
+      #8ce99a 45%,
+      #94d82d 56%,
+      #74b816 100%) !important;
+  border: 4px solid #232538 !important;
+  border-radius: 20px !important;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.55), 0 5px 0 rgba(35, 37, 56, 0.25) !important;
+}
+
+#pokemon-stage-card.classic-battle-arena.gold-stage {
+  background:
+    radial-gradient(circle at 74% 28%, rgba(255, 249, 219, 0.85) 0%, rgba(255, 249, 219, 0) 60%),
+    linear-gradient(180deg, #ffd43b 0%, #ffe066 39%, #c0eb75 44%, #82c91e 100%) !important;
+}
+
+#pokemon-stage-card.classic-battle-arena.shiny-stage {
+  background:
+    radial-gradient(circle at 75% 28%, rgba(255, 243, 191, 0.9) 0%, rgba(255, 243, 191, 0) 58%),
+    linear-gradient(180deg, #91a7ff 0%, #d0bfff 39%, #b2f2bb 44%, #69db7c 100%) !important;
+}
+
+#pokemon-stage-card.classic-battle-arena.review-stage {
+  background:
+    radial-gradient(circle at 75% 28%, rgba(227, 250, 252, 0.88) 0%, rgba(227, 250, 252, 0) 58%),
+    linear-gradient(180deg, #66d9e8 0%, #99e9f2 39%, #c0eb75 44%, #74b816 100%) !important;
+}
+
+.battle-arena-grid {
+  width: 100%;
+  height: 100%;
+  min-height: 185px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px 10px;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+}
+
+/* 정통 포켓몬 GBA/DS 상태창 플레이트 공통 디자인 */
+.wild-status-plate,
+.partner-status-plate {
+  background: linear-gradient(180deg, #fffef7 0%, #f8f4dc 100%) !important;
+  border: 3px solid #232538 !important;
+  border-radius: 14px !important;
+  padding: 6px 10px !important;
+  box-shadow: 0 4px 0 rgba(35, 37, 56, 0.28), inset 0 -3px 0 #e6dec0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  text-align: left !important;
+  gap: 4px !important;
+  max-width: 100%;
+  min-width: 0;
+  position: relative;
+}
+
+/* [좌측 상단] 조우 포켓몬 이름·상태창 */
+#battle-hud.wild-status-plate {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+  align-self: start;
+  width: min(305px, 100%);
+  border-bottom-left-radius: 6px !important;
+}
+
+/* 좌상단 상태창 오른쪽 아래 작은 화살 꼬리 장식 (정통 포켓몬 감성) */
+#battle-hud.wild-status-plate::after {
+  content: "";
+  position: absolute;
+  right: -8px;
+  bottom: 10px;
+  width: 12px;
+  height: 6px;
+  background: #232538;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+
+/* [우측 하단] 파트너 포켓몬 이름·남은 하트 수 상태창 */
+.partner-status-plate {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+  align-self: end;
+  width: min(305px, 100%);
+  border-top-right-radius: 6px !important;
+}
+
+.partner-status-plate::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 12px;
+  width: 12px;
+  height: 6px;
+  background: #232538;
+  clip-path: polygon(100% 0, 0 50%, 100% 100%);
+}
+
+.status-plate-top-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+.caught-ball-mark {
+  font-size: 12px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.wild-status-plate .pokemon-name-label,
+.partner-status-plate .partner-name-label {
+  font-size: clamp(13.5px, 2.2vmin, 17px) !important;
+  font-weight: 900;
+  color: #232538;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.partner-role-tag {
+  background: #ffd43b;
+  color: #232538;
+  border: 1.8px solid #232538;
+  border-radius: 999px;
+  padding: 1px 6px;
+  font-size: 10.5px;
+  font-weight: 900;
+  flex-shrink: 0;
+}
+
+.partner-swap-mini-btn {
+  background: #e7f5ff;
+  color: #1864ab;
+  border: 1.8px solid #232538;
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 900;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.partner-swap-mini-btn:active {
+  transform: translateY(1px);
+}
+
+/* 정통 포켓몬 HP 게이지 스타일 포획률 바 & 하트 바 */
+.wild-gauge-track-row,
+.partner-hearts-track-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #2b303a;
+  border-radius: 999px;
+  padding: 2px 7px 2px 5px;
+  color: #ffffff;
+}
+
+.hp-tag-chip {
+  background: #fcc419;
+  color: #232538;
+  border-radius: 999px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: -0.3px;
+  flex-shrink: 0;
+}
+
+.hp-tag-chip.ally {
+  background: #ff8787;
+  color: #232538;
+}
+
+.hp-bar-outer {
+  flex: 1;
+  height: 8px;
+  background: #495057;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.hp-bar-fill {
+  height: 100%;
+  width: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease, background-color 0.3s ease;
+  background: #40c057;
+}
+
+.hp-bar-fill.rate-100 { width: 100%; background: linear-gradient(90deg, #40c057, #69db7c); }
+.hp-bar-fill.rate-80 { width: 80%; background: linear-gradient(90deg, #fab005, #ffd43b); }
+.hp-bar-fill.rate-50 { width: 50%; background: linear-gradient(90deg, #fa5252, #ff8787); }
+
+.wild-status-plate .catch-rate-pill {
+  padding: 0 4px !important;
+  font-size: 11px !important;
+  border: none !important;
+  background: transparent !important;
+  color: #ffe066 !important;
+  box-shadow: none !important;
+  white-space: nowrap;
+}
+
+.partner-hearts-track-row .hearts-box {
+  font-size: clamp(14px, 2vmin, 17px) !important;
+  line-height: 1;
+  letter-spacing: 1px;
+}
+
+.hearts-fraction-label {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 900;
+  color: #fff3bf;
+  white-space: nowrap;
+}
+
+.status-plate-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.wild-status-plate .battle-stage-pill,
+.partner-status-plate .routine-pill,
+.partner-status-plate .boost-pill {
+  font-size: 10.5px !important;
+  padding: 1px 7px !important;
+}
+
+/* [우측 상단] 야생 포켓몬 & 원경 잔디 발판 */
+.wild-sprite-zone {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: center;
+  align-self: center;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(112px, 21vmin, 172px);
+  height: clamp(96px, 18vmin, 148px);
+}
+
+/* [좌측 하단] 파트너 포켓몬 뒷모습 & 근경 잔디 발판 */
+.partner-sprite-zone {
+  grid-column: 1;
+  grid-row: 2;
+  justify-self: center;
+  align-self: end;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: clamp(120px, 23vmin, 186px);
+  height: clamp(98px, 18.5vmin, 152px);
+}
+
+/* 정통 포켓몬 배틀 원형 잔디 발판 (원경/근경 이중 타원 링) */
+.battle-grass-pad {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 45%, #d8f5a2 0%, #8ce99a 55%, #51cf66 86%, #2f9e44 100%);
+  border: 3px solid #2b8a3e;
+  box-shadow: 0 5px 0 rgba(35, 37, 56, 0.24), inset 0 2px 4px rgba(255, 255, 255, 0.65);
+  z-index: 1;
+}
+
+.wild-grass-pad {
+  width: 92%;
+  height: 34px;
+  bottom: 4px;
+}
+
+.partner-grass-pad {
+  width: 98%;
+  height: 40px;
+  bottom: 0;
+  background: radial-gradient(ellipse at 50% 45%, #e9fac8 0%, #94d82d 58%, #5c940d 100%);
+  border-color: #232538;
+}
+
+.wild-art-wrap {
+  width: clamp(92px, 17.5vmin, 142px) !important;
+  height: clamp(92px, 17.5vmin, 142px) !important;
+  z-index: 2;
+  margin-bottom: 10px;
+}
+
+.partner-art-wrap {
+  width: clamp(98px, 19vmin, 150px);
+  height: clamp(98px, 19vmin, 150px);
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+#battle-partner-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 6px 6px rgba(0, 0, 0, 0.28));
+  transition: transform 0.28s ease;
+}
+
+#battle-partner-img.is-pixel-sprite {
+  image-rendering: pixelated;
+}
+
+/* 공식 back 스프라이트가 없는 최신 세대(8·9세대)용 어깨너머 시점 변환 */
+#battle-partner-img.is-over-shoulder-back {
+  transform: scaleX(-1) perspective(300px) rotateY(-12deg);
+  filter: brightness(0.92) contrast(1.06) drop-shadow(3px -2px 0 rgba(255, 249, 219, 0.65)) drop-shadow(0 6px 6px rgba(0, 0, 0, 0.3));
+}
+
+@keyframes partnerIdleBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.partner-art-wrap .partner-idle-bob:not(.is-over-shoulder-back) {
+  animation: partnerIdleBob 2.2s ease-in-out infinite;
+}
+
+@keyframes partnerAttackLunge {
+  0% { transform: translate(0, 0) scale(1); }
+  45% { transform: translate(26px, -22px) scale(1.1); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+
+.partner-art-wrap.attack-lunge {
+  animation: partnerAttackLunge 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 좌측 하단(파트너/트레이너 위치)에서 우측 상단(야생 포켓몬 발판)으로 포물선 투척! */
+@keyframes ballThrowDiagonal {
+  0% { transform: translate(-165px, 105px) scale(0.55) rotate(-45deg); opacity: 1; }
+  50% { transform: translate(-65px, -36px) scale(0.95) rotate(190deg); opacity: 1; }
+  100% { transform: translate(0, 0) scale(1) rotate(360deg); opacity: 1; }
+}
+
+#pokemon-stage-card.classic-battle-arena .throw-ball.anim-throw {
+  animation: ballThrowDiagonal 0.55s cubic-bezier(0.22, 0.78, 0.36, 1) forwards !important;
+}
+
+/* 하단 문제 패널을 정통 포켓몬 배틀 대화창 이중 테두리 감성으로 업그레이드 */
+#screen-battle .question-box {
+  border: 3.5px solid #232538;
+  box-shadow: inset 0 0 0 3px #74c0fc, 0 4px 0 rgba(35, 37, 56, 0.2);
+  background: #fffef9;
+}
+
+/* 파트너 선택 모달(#partner-select-modal) */
+.partner-modal-card {
+  width: min(680px, 95vw) !important;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.partner-preview-banner {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: linear-gradient(135deg, #fff9db 0%, #e7f5ff 100%);
+  border: 2.5px solid #232538;
+  border-radius: 16px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+}
+
+.partner-preview-pair {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.partner-preview-slot {
+  width: 72px;
+  height: 82px;
+  background: #ffffff;
+  border: 2px solid #232538;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  font-size: 10.5px;
+  font-weight: 900;
+}
+
+.partner-preview-slot.back-slot {
+  background: linear-gradient(180deg, #a5d8ff 0%, #b2f2bb 100%);
+}
+
+.partner-preview-slot img {
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+}
+
+.partner-preview-title {
+  font-size: 17px;
+  font-weight: 900;
+  margin-bottom: 3px;
+}
+
+.partner-candidates-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 8px;
+  overflow-y: auto;
+  max-height: 38vh;
+  padding: 4px 2px;
+}
+
+.partner-cand-card {
+  background: #ffffff;
+  border: 2.5px solid #232538;
+  border-radius: 14px;
+  padding: 7px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  font-family: inherit;
+  position: relative;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.partner-cand-card:hover {
+  transform: translateY(-2px);
+  background: #fff9db;
+}
+
+.partner-cand-card.selected {
+  background: linear-gradient(180deg, #fff3bf 0%, #ffe066 100%);
+  box-shadow: 0 3px 0 #232538;
+}
+
+.partner-cand-card img {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+
+.partner-cand-name {
+  font-size: 12.5px;
+  font-weight: 900;
+  color: #232538;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.partner-cand-tag {
+  font-size: 10px;
+  font-weight: 800;
+  color: #495057;
+  background: #f1f3f5;
+  border-radius: 999px;
+  padding: 1px 6px;
+}
+
+/* 스마트폰 세로(<= 480px) & 폰 가로(높이 <= 540px) 반응형 최적화 */
+@media (max-width: 480px) {
+  #pokemon-stage-card.classic-battle-arena {
+    min-height: 176px;
+    padding: 6px 8px !important;
+  }
+  .battle-arena-grid {
+    min-height: 162px;
+    gap: 4px 6px;
+  }
+  .wild-status-plate,
+  .partner-status-plate {
+    padding: 5px 7px !important;
+    gap: 3px !important;
+  }
+  .wild-sprite-zone {
+    width: 104px;
+    height: 86px;
+  }
+  .partner-sprite-zone {
+    width: 108px;
+    height: 88px;
+  }
+  .wild-art-wrap {
+    width: 82px !important;
+    height: 82px !important;
+  }
+  .partner-art-wrap {
+    width: 86px;
+    height: 86px;
+  }
+  .partner-preview-banner {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+@media (max-height: 540px) and (orientation: landscape) {
+  #pokemon-stage-card.classic-battle-arena {
+    flex: 0 0 43% !important;
+    min-height: 0 !important;
+    padding: 6px 8px !important;
+  }
+  .battle-arena-grid {
+    min-height: 0;
+    height: 100%;
+    gap: 4px 6px;
+  }
+  .wild-status-plate,
+  .partner-status-plate {
+    padding: 4px 6px !important;
+    gap: 2px !important;
+  }
+  .wild-status-plate .pokemon-name-label,
+  .partner-status-plate .partner-name-label {
+    font-size: 12px !important;
+  }
+  .wild-sprite-zone,
+  .partner-sprite-zone {
+    width: 92px;
+    height: 78px;
+  }
+  .wild-art-wrap {
+    width: 72px !important;
+    height: 72px !important;
+  }
+  .partner-art-wrap {
+    width: 76px;
+    height: 76px;
+  }
+}
+
+/* === V7 Regional Pokemon Gym Arena Backgrounds === */
+#screen-battle {
+  background-size: cover !important;
+  background-position: center center !important;
+}
+
+#pokemon-stage-card.classic-battle-arena {
+  --gym-overlay: linear-gradient(180deg, rgba(15, 23, 42, 0.08) 0%, rgba(15, 23, 42, 0.02) 48%, rgba(15, 23, 42, 0.14) 100%);
+  background-image: var(--gym-overlay), var(--gym-bg-url) !important;
+  background-size: cover !important;
+  background-position: center 62% !important;
+  background-repeat: no-repeat !important;
+  background-color: #1e293b !important;
+}
+
+#pokemon-stage-card.classic-battle-arena.gold-stage {
+  --gym-overlay: radial-gradient(circle at 74% 28%, rgba(255, 243, 191, 0.42) 0%, rgba(255, 212, 59, 0.14) 65%, rgba(15, 23, 42, 0.12) 100%);
+  box-shadow: inset 0 0 0 3px #ffd43b, 0 5px 0 rgba(35, 37, 56, 0.28) !important;
+}
+
+#pokemon-stage-card.classic-battle-arena.shiny-stage {
+  --gym-overlay: radial-gradient(circle at 74% 28%, rgba(255, 249, 219, 0.46) 0%, rgba(208, 191, 255, 0.2) 65%, rgba(15, 23, 42, 0.12) 100%);
+  box-shadow: inset 0 0 0 3px #fcc419, 0 5px 0 rgba(35, 37, 56, 0.28) !important;
+}
+
+#pokemon-stage-card.classic-battle-arena.review-stage {
+  --gym-overlay: radial-gradient(circle at 74% 28%, rgba(227, 250, 252, 0.42) 0%, rgba(102, 217, 232, 0.16) 65%, rgba(15, 23, 42, 0.12) 100%);
+  box-shadow: inset 0 0 0 3px #22b8cf, 0 5px 0 rgba(35, 37, 56, 0.28) !important;
+}
+
+/* 체육관 코트 바닥과 자연스럽게 어우러지는 지역별 반투명 배틀 링 발판 */
+#pokemon-stage-card.classic-battle-arena .battle-grass-pad {
+  border-width: 2.5px;
+  backdrop-filter: blur(1px);
+}
+
+/* 1) 초록 숲 식물원 체육관 */
+#pokemon-stage-card[data-region="forest"] .battle-grass-pad {
+  background: radial-gradient(ellipse at 50% 50%, rgba(216, 245, 162, 0.72) 0%, rgba(81, 207, 102, 0.56) 72%, rgba(43, 138, 62, 0.78) 100%);
+  border-color: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 5px 10px rgba(20, 54, 28, 0.36);
+}
+
+/* 2) 반짝 도시 일렉트릭 네온 체육관 */
+#pokemon-stage-card[data-region="city"] .battle-grass-pad {
+  background: radial-gradient(ellipse at 50% 50%, rgba(153, 233, 242, 0.62) 0%, rgba(34, 184, 207, 0.46) 68%, rgba(255, 212, 59, 0.75) 100%);
+  border-color: #ffe066;
+  box-shadow: 0 0 14px rgba(59, 201, 219, 0.55), 0 5px 10px rgba(11, 25, 44, 0.5);
+}
+
+/* 3) 모래 사막 고대 사암·화염 체육관 */
+#pokemon-stage-card[data-region="desert"] .battle-grass-pad {
+  background: radial-gradient(ellipse at 50% 50%, rgba(255, 236, 153, 0.68) 0%, rgba(240, 140, 0, 0.48) 72%, rgba(217, 72, 15, 0.72) 100%);
+  border-color: #fff3bf;
+  box-shadow: 0 0 12px rgba(255, 146, 43, 0.45), 0 5px 10px rgba(74, 37, 12, 0.42);
+}
+
+/* 4) 푸른 바다 크리스탈 아쿠아 돔 체육관 */
+#pokemon-stage-card[data-region="sea"] .battle-grass-pad {
+  background: radial-gradient(ellipse at 50% 50%, rgba(227, 250, 252, 0.72) 0%, rgba(116, 192, 252, 0.52) 70%, rgba(28, 126, 214, 0.74) 100%);
+  border-color: #e7f5ff;
+  box-shadow: 0 0 14px rgba(116, 192, 252, 0.55), 0 5px 10px rgba(12, 52, 92, 0.42);
+}
+
+/* 체육관 배경 위에서도 상태창 가독성이 선명하도록 살짝 더 또렷한 외곽 그림자 부여 */
+#pokemon-stage-card.classic-battle-arena .wild-status-plate,
+#pokemon-stage-card.classic-battle-arena .partner-status-plate {
+  background: linear-gradient(180deg, rgba(255, 254, 247, 0.96) 0%, rgba(248, 244, 220, 0.95) 100%) !important;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.34), inset 0 -3px 0 #e6dec0 !important;
+}

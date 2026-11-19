@@ -224,6 +224,99 @@
     };
   }
 
+  // 0) m1: 1~9 / 11~19 수 띠 빈칸 및 대소 비교 교구 (Number Strip, Tier 1~4)
+  function tplNumberStrip(rng, tier, seed) {
+    var base = tier <= 2 ? 1 : (1 + Math.floor(rng() * 10));
+    var isCompare = rng() < 0.5;
+    var cells = [];
+    var cellW = 39;
+    var startX = 14;
+    var y = 18;
+    var ans, qText, hint;
+
+    if (isCompare) {
+      var pool = [];
+      for (var k = 0; k < 9; k++) pool.push(base + k);
+      // pick 4 distinct numbers from the strip
+      var picked = [];
+      while (picked.length < 4) {
+        var cand = pool[Math.floor(rng() * pool.length)];
+        if (picked.indexOf(cand) === -1) picked.push(cand);
+      }
+      picked.sort(function (a, b) { return a - b; });
+      var askSmallest = rng() < 0.55;
+      ans = askSmallest ? picked[0] : picked[picked.length - 1];
+      for (var i = 0; i < 9; i++) {
+        var num = base + i;
+        var x = startX + i * cellW;
+        var hi = picked.indexOf(num) !== -1;
+        cells.push(
+          '<rect x="' + x + '" y="' + y + '" width="' + cellW + '" height="40" rx="6" fill="' + (hi ? "#74C0FC" : "#FFFFFF") + '" stroke="#232538" stroke-width="' + (hi ? "2.8" : "1.8") + '"/>' +
+          '<text x="' + (x + cellW / 2) + '" y="44" text-anchor="middle" font-size="' + (hi ? "19" : "14") + '" font-weight="900" fill="' + (hi ? "#0B3C5D" : "#94A3B8") + '">' + num + "</text>" +
+          (hi ? ('<circle cx="' + (x + cellW / 2) + '" cy="11" r="4" fill="#FF6B6B" stroke="#232538" stroke-width="1.4"/>') : "")
+        );
+      }
+      qText = "수 띠에 색칠된 숫자(" + picked.join(", ") + ") 중에서 가장 " + (askSmallest ? "작은" : "큰") + " 수는 무엇일까요?";
+      hint = "수 띠에서는 " + (askSmallest ? ("가장 왼쪽에 있는 " + ans + "이(가) 제일 작아요!") : ("가장 오른쪽에 있는 " + ans + "이(가) 제일 커요!"));
+      var choices = [String(picked[0]), String(picked[1]), String(picked[2]), String(picked[3])];
+      var svgStr = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 68">' +
+        '<rect x="4" y="4" width="372" height="60" rx="14" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1.5"/>' +
+        cells.join("") + "</svg>";
+      return {
+        id: "vis_m1_strip_" + seed,
+        seed: seed,
+        templateId: "m1_number_strip",
+        subject: "math",
+        category: "math",
+        unit: "m1",
+        tier: Math.max(1, Math.min(4, tier)),
+        domain: "이해력",
+        pokeType: "물",
+        svg: svgStr,
+        question: qText,
+        choices: choices,
+        answer: String(ans),
+        hint: hint,
+        ttsKo: qText
+      };
+    } else {
+      var hideIdx = 1 + Math.floor(rng() * 7); // 1..7 so left & right neighbors are visible!
+      ans = base + hideIdx;
+      for (var j = 0; j < 9; j++) {
+        var n2 = base + j;
+        var x2 = startX + j * cellW;
+        var isQ = j === hideIdx;
+        cells.push(
+          '<rect x="' + x2 + '" y="' + y + '" width="' + cellW + '" height="40" rx="6" fill="' + (isQ ? "#FFD43B" : "#FFFFFF") + '" stroke="#232538" stroke-width="' + (isQ ? "2.8" : "2") + '"/>' +
+          '<text x="' + (x2 + cellW / 2) + '" y="44" text-anchor="middle" font-size="' + (isQ ? "20" : "16") + '" font-weight="900" fill="' + (isQ ? "#D9480F" : "#1E293B") + '">' + (isQ ? "?" : n2) + "</text>"
+        );
+      }
+      qText = "수 띠에서 노란색 빈칸(?) 자리에 들어갈 숫자는 무엇일까요?";
+      hint = (ans - 1) + "보다 1 크고 " + (ans + 1) + " 바로 앞에 있는 숫자는 " + ans + "이에요!";
+      var chs2 = makeNumericChoices(rng, ans, base, base + 9, "");
+      var svg2 = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 68">' +
+        '<rect x="4" y="4" width="372" height="60" rx="14" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1.5"/>' +
+        cells.join("") + "</svg>";
+      return {
+        id: "vis_m1_strip_" + seed,
+        seed: seed,
+        templateId: "m1_number_strip",
+        subject: "math",
+        category: "math",
+        unit: "m1",
+        tier: Math.max(1, Math.min(4, tier)),
+        domain: "이해력",
+        pokeType: "물",
+        svg: svg2,
+        question: qText,
+        choices: chs2,
+        answer: String(ans),
+        hint: hint,
+        ttsKo: qText
+      };
+    }
+  }
+
   // 4) m3: 수 띠 점프 덧셈·뺄셈 (Number Line Jump, Tier 3~5)
   function tplNumberLine(rng, tier, seed) {
     var baseStart = tier <= 3 ? 0 : 5;
@@ -793,7 +886,8 @@
     m1_ten_frame: { fn: tplTenFrame, minTier: 1, maxTier: 3 },
     m1_number_bonds: { fn: tplNumberBonds, minTier: 2, maxTier: 5 },
     m2_3d_shapes: { fn: tpl3dShapes, minTier: 2, maxTier: 5 },
-    m3_number_line: { fn: tplNumberLine, minTier: 3, maxTier: 6 },
+    m1_number_strip: { fn: tplNumberStrip, minTier: 1, maxTier: 4 },
+    m3_number_line: { fn: tplNumberLine, minTier: 1, maxTier: 6 },
     m4_length_bars: { fn: tplLengthBars, minTier: 4, maxTier: 7 },
     m4_balance_scale: { fn: tplBalanceScale, minTier: 4, maxTier: 8 },
     m5_base10_blocks: { fn: tplBase10Blocks, minTier: 6, maxTier: 9 },

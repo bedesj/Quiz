@@ -34,6 +34,7 @@
         <button type="button" id="btn-level-settings" class="nav-btn btn-level-nav" title="학습 수준 정하기">⚙️ 학습 수준</button>
         <button type="button" id="btn-voice-mode" class="nav-btn btn-voice-nav" title="음성 읽어주기 모드 전환">👨‍👩‍👧 부모동반</button>
         <button type="button" id="btn-shiny-settings" class="nav-btn btn-shiny-rate" title="색이 다른 포켓몬 확률 설정">✨ 이로치 확률</button>
+        <button type="button" id="btn-top-partner" class="nav-btn btn-partner-nav" title="파트너 포켓몬 바꾸기">🤝 피카츄</button>
         <button type="button" id="btn-top-pokedex" class="nav-btn btn-pokedex">📖 도감</button>
         <button type="button" id="btn-sound-toggle" class="nav-btn btn-sound">🔊 소리 켜짐</button>
       </div>
@@ -45,6 +46,7 @@
       <div class="title-left-controls">
         <button type="button" id="btn-open-routine-title" class="corner-pill-btn routine" title="일일 3과목 학습 루틴 열기">📅 오늘의 루틴 0/14</button>
         <button type="button" id="btn-install-pwa" class="corner-pill-btn pwa-install" title="스마트폰·태블릿 홈 화면에 앱으로 설치하기">📲 앱 설치</button>
+        <button type="button" id="btn-open-partner-title" class="corner-pill-btn partner-pill" title="함께 배틀할 내 파트너 포켓몬 고르기">🤝 파트너: 피카츄</button>
         <button type="button" id="btn-offline-pack" class="corner-pill-btn offline-pack" title="비행기 모드에서도 1,025마리 실물 포켓몬이 나오도록 기기에 미리 저장해요">📦 오프라인 도감</button>
       </div>
 
@@ -142,7 +144,8 @@
               <button type="button" id="btn-toggle-interactive" class="mini-tool-btn">🧩 조작 입력기 켜짐</button>
               <button type="button" id="btn-toggle-hanja" class="mini-tool-btn">🖌️ 한자 켜짐</button>
               <button type="button" id="btn-toggle-flee" class="mini-tool-btn">🛡️ 무벌칙 해설 모드</button>
-              <button type="button" id="btn-export-json" class="mini-tool-btn save-manage-highlight">💾 저장 · 백업 · 삭제</button>
+              <button type="button" id="btn-export-json" class="mini-tool-btn">💾 기록 백업</button>
+              <button type="button" id="btn-level-save-manage" class="mini-tool-btn save-manage-highlight">💾 저장 · 삭제 관리</button>
             </div>
           </div>
           <div id="svg-preview-box" class="svg-preview-box hidden"></div>
@@ -186,31 +189,70 @@
     <!-- 6. 배틀 화면 (포켓몬 애니메이션 스타디움 배경 + 3대 조작 입력기 + 한자 화선지 도장) -->
     <section id="screen-battle" class="screen">
       <div class="battle-container">
-        <div id="battle-hud" class="battle-hud">
-          <div class="hearts-and-rate-wrap">
-            <div id="battle-hearts" class="hearts-box" aria-label="원샷 보너스 하트">❤️❤️❤️</div>
-            <span id="battle-catch-rate-pill" class="catch-rate-pill rate-100">🎯 포획 100%</span>
-          </div>
-          <div class="battle-hud-right">
-            <span id="battle-routine-pill" class="routine-pill hidden">📅 루틴 0/14</span>
-            <span id="battle-boost-pill" class="boost-pill hidden">🍀 복습 이로치 부스트!</span>
-            <span id="battle-shiny-pill" class="shiny-pill hidden">✨ 색이 다른!</span>
-            <div id="battle-stage-pill" class="battle-stage-pill">❓ 실루엣 퀴즈</div>
-          </div>
-        </div>
-
         <div id="battle-main" class="battle-main">
-          <!-- 포켓몬 실루엣 / 실제 모습 무대 -->
-          <div id="pokemon-stage-card" class="pokemon-stage-card">
+          <!-- 정통 포켓몬 RPG 4사분면 배틀 무대:
+               좌상단(조우 포켓몬 이름·포획률) / 우상단(조우 포켓몬+원경 잔디 발판)
+               좌하단(파트너 포켓몬 뒷모습+근경 잔디 발판) / 우하단(파트너 이름·남은 하트 수) -->
+          <div id="pokemon-stage-card" class="pokemon-stage-card classic-battle-arena">
             <div id="shiny-alert-banner" class="shiny-alert-banner hidden">✨ 반짝반짝! 색이 다른 포켓몬이에요!</div>
-            <div class="pokemon-art-wrap">
-              <div id="battle-img-spinner" class="pokemon-loading-spinner hidden" aria-hidden="true"></div>
-              <img id="battle-pokemon-img" alt="야생 포켓몬" class="is-silhouette" referrerpolicy="no-referrer" decoding="async" />
-              <div id="throw-ball" class="throw-ball"></div>
-            </div>
-            <div class="pokemon-info-bar">
-              <span id="battle-pokemon-name" class="pokemon-name-label">???</span>
-              <div id="battle-pokemon-types" class="region-type-row"></div>
+
+            <div class="battle-arena-grid">
+              <!-- [1] 좌측 상단: 조우한 야생 포켓몬 이름 & 포획 게이지 상태창 (id="battle-hud" 보존) -->
+              <div id="battle-hud" class="battle-hud wild-status-plate">
+                <div class="status-plate-top-row">
+                  <span id="wild-caught-ball-mark" class="caught-ball-mark hidden" title="이미 도감에 등록된 포켓몬">🔴</span>
+                  <span id="battle-pokemon-name" class="pokemon-name-label">???</span>
+                  <span id="battle-shiny-pill" class="shiny-pill hidden">✨ 이로치</span>
+                </div>
+                <div class="wild-gauge-track-row">
+                  <span class="hp-tag-chip">포획</span>
+                  <div class="hp-bar-outer">
+                    <div id="wild-catch-gauge-fill" class="hp-bar-fill rate-100"></div>
+                  </div>
+                  <span id="battle-catch-rate-pill" class="catch-rate-pill rate-100">🎯 100%</span>
+                </div>
+                <div class="status-plate-meta-row">
+                  <div id="battle-pokemon-types" class="region-type-row"></div>
+                  <div id="battle-stage-pill" class="battle-stage-pill">❓ 실루엣 퀴즈</div>
+                </div>
+              </div>
+
+              <!-- [2] 우측 상단: 조우한 야생 포켓몬 + 원경 잔디 발판 + 몬스터볼 투척 타겟 -->
+              <div id="wild-sprite-zone" class="wild-sprite-zone">
+                <div class="battle-grass-pad wild-grass-pad" aria-hidden="true"></div>
+                <div class="pokemon-art-wrap wild-art-wrap">
+                  <div id="battle-img-spinner" class="pokemon-loading-spinner hidden" aria-hidden="true"></div>
+                  <img id="battle-pokemon-img" alt="야생 포켓몬" class="is-silhouette" referrerpolicy="no-referrer" decoding="async" />
+                  <div id="throw-ball" class="throw-ball"></div>
+                </div>
+              </div>
+
+              <!-- [3] 좌측 하단: 내 파트너 포켓몬 뒷모습 + 근경 잔디 발판 -->
+              <div id="partner-sprite-zone" class="partner-sprite-zone">
+                <div class="battle-grass-pad partner-grass-pad" aria-hidden="true"></div>
+                <div class="partner-art-wrap">
+                  <img id="battle-partner-img" alt="파트너 포켓몬 뒷모습" class="partner-idle-bob" referrerpolicy="no-referrer" decoding="async" />
+                </div>
+              </div>
+
+              <!-- [4] 우측 하단: 파트너 포켓몬 이름 + 남은 하트 수 상태창 -->
+              <div id="partner-hud-box" class="partner-status-plate">
+                <div class="status-plate-top-row partner-top-row">
+                  <span class="partner-role-tag">🤝 파트너</span>
+                  <span id="battle-partner-name" class="partner-name-label">피카츄</span>
+                  <button type="button" id="btn-battle-change-partner" class="partner-swap-mini-btn" title="파트너 포켓몬 바꾸기">교체</button>
+                </div>
+                <div class="partner-hearts-track-row">
+                  <span class="hp-tag-chip ally">하트</span>
+                  <div id="battle-hearts" class="hearts-box" aria-label="남은 하트 수">❤️❤️❤️</div>
+                  <span id="battle-hearts-count-text" class="hearts-fraction-label">3 / 3</span>
+                </div>
+                <div class="status-plate-meta-row partner-meta-row">
+                  <div id="battle-partner-types" class="region-type-row"></div>
+                  <span id="battle-routine-pill" class="routine-pill hidden">📅 루틴 0/14</span>
+                  <span id="battle-boost-pill" class="boost-pill hidden">🍀 부스트</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -250,7 +292,7 @@
       <div class="pokedex-toolbar">
         <div class="filter-tabs">
           <button type="button" id="filter-btn-all" class="filter-btn active">전체 (1025)</button>
-          <button type="button" id="filter-btn-caught" class="filter-btn">📖 도감 등록 (0)</button>
+          <button type="button" id="filter-btn-caught" class="filter-btn">잡은 포켓몬 (0)</button>
           <button type="button" id="filter-btn-owned" class="filter-btn">🎒 보유 포켓몬 (0)</button>
           <button type="button" id="filter-btn-evolvable" class="filter-btn">🧬 진화 가능 (0)</button>
           <button type="button" id="filter-btn-shiny" class="filter-btn">✨ 색이 다른 (0)</button>
@@ -359,6 +401,7 @@
         </div>
 
         <div class="modal-btn-row">
+          <button type="button" id="btn-modal-set-partner" class="nav-btn btn-partner-set">🤝 파트너로 설정</button>
           <button type="button" id="btn-modal-toggle-3d" class="nav-btn btn-3d-toggle">🧊 3D로 돌려보기</button>
           <button type="button" id="btn-modal-toggle-shiny" class="nav-btn btn-shiny-rate hidden">✨ 색이 다른 모습 보기</button>
         </div>
@@ -544,6 +587,40 @@
 
         <div class="modal-btn-row">
           <button type="button" id="btn-close-save-modal" class="stamp-close-btn">닫기</button>
+        </div>
+      </div>
+    </div>
+    <!-- 모달 11: 내 파트너 포켓몬 설정 모달 (앞모습 + 배틀 뒷모습 실시간 미리보기) -->
+    <div id="partner-select-modal" class="modal-backdrop hidden">
+      <div class="modal-card routine-modal-card partner-modal-card">
+        <h3 class="stamp-modal-title">🤝 함께 싸울 파트너 포켓몬 설정</h3>
+        <p class="game-subtitle">
+          배틀 화면 좌측 하단에 <strong>뒷모습</strong>으로 등장해 응원과 공격을 함께하는 단짝 포켓몬이에요!
+        </p>
+
+        <!-- 현재 선택된 파트너 앞모습 + 배틀 뒷모습 미리보기 -->
+        <div id="partner-current-preview" class="partner-preview-banner">
+          <div class="partner-preview-pair">
+            <div class="partner-preview-slot">
+              <img id="partner-preview-front-img" alt="파트너 앞모습" referrerpolicy="no-referrer" decoding="async" />
+              <span>앞모습</span>
+            </div>
+            <div class="partner-preview-slot back-slot">
+              <img id="partner-preview-back-img" alt="파트너 배틀 뒷모습" referrerpolicy="no-referrer" decoding="async" />
+              <span>배틀 뒷모습</span>
+            </div>
+          </div>
+          <div class="partner-preview-info">
+            <div id="partner-preview-title" class="partner-preview-title">#0025 피카츄</div>
+            <div id="partner-preview-types" class="region-type-row"></div>
+            <div id="partner-preview-sub" class="routine-subj-desc">기본 스타팅 5마리와 내가 잡아서 보유 중인 모든 포켓몬을 파트너로 고를 수 있어요.</div>
+          </div>
+        </div>
+
+        <div id="partner-candidates-grid" class="partner-candidates-grid"></div>
+
+        <div class="modal-btn-row">
+          <button type="button" id="btn-close-partner-modal" class="stamp-close-btn">확인</button>
         </div>
       </div>
     </div>

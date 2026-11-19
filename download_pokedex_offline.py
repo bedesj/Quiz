@@ -109,6 +109,15 @@ def main():
     else:
         js_lines.append("window.OFFLINE_SPRITE_DATA_URIS = window.OFFLINE_SPRITE_DATA_URIS || {};")
 
+    # 기존 번들에 들어 있던 파트너 뒷모습(BUILTIN_BACK_SPRITES) 줄은 지우지 않고 그대로 다시 붙인다
+    if BUNDLE_JS.exists():
+        keep = [ln for ln in BUNDLE_JS.read_text(encoding="utf-8").splitlines() if ln.startswith("window.BUILTIN_BACK_SPRITES")]
+        if keep:
+            js_lines.append("// 기본 스타팅 파트너 뒷모습(Back Sprite) 내장 데이터")
+            if not any(ln.startswith("window.BUILTIN_BACK_SPRITES =") for ln in keep):
+                js_lines.append("window.BUILTIN_BACK_SPRITES = window.BUILTIN_BACK_SPRITES || {};")
+            js_lines.extend(keep)
+
     BUNDLE_JS.write_text("\n".join(js_lines) + "\n", encoding="utf-8")
     print(f"\n✅ 완료! ./sprites/ 폴더 및 {BUNDLE_JS.name} 생성 완료 ({ok_cnt:,}개 실물 포켓몬 내장).")
     print("이제 인터넷을 완전히 끈 상태(비행기 모드 · file:// 더블클릭 · 오프라인 앱)에서도 처음부터 1,025마리가 실물로 작동합니다!")

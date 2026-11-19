@@ -54,6 +54,8 @@
     soundOn: true,
     voiceMode: "parent", // 'parent' | 'touch' | 'auto'
     shinyMode: "go",
+    partnerId: 25,
+    partnerShiny: false,
     shinyMigratedToGoV3: true,
     lastSavedAt: "",
     presetId: "starter", // 'starter' | 'basic' | 'advanced' | 'custom'
@@ -261,6 +263,7 @@
     if (battleScreen && window.THEME_ASSETS.battleBg) {
       battleScreen.style.backgroundImage = 'url("' + window.THEME_ASSETS.battleBg + '")';
     }
+    applyBattleRegionGymTheme("forest");
     var rBgs = window.THEME_ASSETS.regionBgs || {};
     var rKeys = ["forest", "city", "desert", "sea"];
     for (var i = 0; i < rKeys.length; i++) {
@@ -312,6 +315,16 @@
     return "att_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 10);
   }
 
+  function josa(word, pair) {
+    var s = String(word || "");
+    var parts = pair.split("/");
+    if (!s) return parts[0];
+    var code = s.charCodeAt(s.length - 1);
+    if (code < 0xAC00 || code > 0xD7A3) return parts[0];
+    var hasBatchim = (code - 0xAC00) % 28 !== 0;
+    return hasBatchim ? parts[0] : parts[1];
+  }
+
   function padDexNum(id) {
     return "#" + String(id).padStart(4, "0");
   }
@@ -360,7 +373,15 @@
     } else {
       // 기존 저장 데이터도 요청에 따라 기본 이로치 확률을 '포켓몬 GO 급(go)'으로 자동 전환!
       state.shinyMode = "go";
+    state.partnerId = 25;
+    state.partnerShiny = false;
       state.shinyMigratedToGoV3 = true;
+    }
+    if (typeof parsed.partnerId === "number" && parsed.partnerId >= 1 && parsed.partnerId <= 1025) {
+      state.partnerId = Math.floor(parsed.partnerId);
+    }
+    if (typeof parsed.partnerShiny === "boolean") {
+      state.partnerShiny = parsed.partnerShiny;
     }
     if (typeof parsed.lastSavedAt === "string") {
       state.lastSavedAt = parsed.lastSavedAt;
@@ -564,6 +585,8 @@
       soundOn: state.soundOn,
       voiceMode: state.voiceMode,
       shinyMode: state.shinyMode,
+      partnerId: state.partnerId || 25,
+      partnerShiny: !!state.partnerShiny,
       presetId: state.presetId,
       subjectUnitIdx: state.subjectUnitIdx,
       creativeDiff: state.creativeDiff,
@@ -715,6 +738,7 @@
           domain: q.domain,
           pokeType: q.pokeType,
           format: q.format || "choice",
+          svg: q.svg || "",
           question: q.question,
           choices: q.choices ? q.choices.slice() : [],
           answer: q.answer,
@@ -1011,6 +1035,7 @@
       domain: base.domain || "",
       pokeType: base.pokeType || "",
       format: base.format || "choice",
+      svg: base.svg || "",
       question: base.question,
       choices: shuffle(base.choices),
       answer: base.answer,
@@ -1514,6 +1539,322 @@
         }).catch(function () {});
       });
     }).catch(function () {});
+  }
+
+  var STARTER_PARTNER_IDS = [25, 1, 4, 7, 133];
+
+  function isPartnerSelectable(pokeId) {
+    var nid = Number(pokeId);
+    if (STARTER_PARTNER_IDS.indexOf(nid) !== -1) return true;
+    return getOwnedCount(nid) >= 1;
+  }
+
+  function getPartnerPokemon() {
+    var pid = Number(state.partnerId) || 25;
+    if (!isPartnerSelectable(pid)) {
+      pid = 25;
+      state.partnerId = 25;
+      state.partnerShiny = false;
+    }
+    var pObj = POKEMON_BY_ID[pid] || POKEMON_BY_ID[25] || window.POKEMON_DATA[0];
+    if (state.partnerShiny && getShinyOwnedCount(pObj.id) < 1) {
+      state.partnerShiny = false;
+    }
+    return pObj;
+  }
+
+  function setPartnerPokemon(pokeId, useShiny) {
+    var nid = Number(pokeId);
+    if (!POKEMON_BY_ID[nid] || !isPartnerSelectable(nid)) return false;
+    state.partnerId = nid;
+    state.partnerShiny = !!(useShiny && getShinyOwnedCount(nid) >= 1);
+    saveState();
+    updatePartnerButtonsUI();
+    if (state.screen === "battle" && battle.active) {
+      renderPartnerInBattle();
+    }
+    if (state.screen === "pokedex") {
+      renderPokedexScreen();
+    }
+    return true;
+  }
+
+  function makePartnerBackFallbackSvg(pokemon, useShiny) {
+    var primaryType = (pokemon && pokemon.types && pokemon.types[0]) || "노말";
+    var colorMap = {
+      "전기": "#ffd43b", "불꽃": "#ff8743", "물": "#4dabf7", "풀": "#69db7c",
+      "에스퍼": "#f783ac", "페어리": "#faa2c1", "드래곤": "#748ffc", "악": "#495057",
+      "강철": "#adb5bd", "바위": "#c08552", "땅": "#e0a96d", "얼음": "#99e9f2",
+      "격투": "#e8590c", "독": "#be4bdb", "벌레": "#94d82d", "비행": "#74c0fc",
+      "고스트": "#845ef7", "노말": "#dee2e6"
+    };
+    var bodyCol = useShiny ? "#ffe066" : (colorMap[primaryType] || "#ffd43b");
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">' +
+      '<path d="M96,128 Q132,126 142,92 Q124,104 98,112 Z" fill="' + bodyCol + '" stroke="#232538" stroke-width="5" stroke-linejoin="round"/>' +
+      '<path d="M48,62 L30,22 Q52,28 66,50 Z" fill="' + bodyCol + '" stroke="#232538" stroke-width="5" stroke-linejoin="round"/>' +
+      '<path d="M88,58 L118,20 Q120,42 102,64 Z" fill="' + bodyCol + '" stroke="#232538" stroke-width="5" stroke-linejoin="round"/>' +
+      '<path d="M40,146 C36,116 44,92 56,82 C46,64 56,40 80,40 C104,40 112,64 102,82 C112,96 114,120 106,146 Z" fill="' + bodyCol + '" stroke="#232538" stroke-width="5.5" stroke-linejoin="round"/>' +
+      '</svg>';
+    return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
+  }
+
+  function applyPartnerBackImage(imgEl, pokemon, useShiny) {
+    if (!imgEl || !pokemon) return;
+    var reqId = String(++imageReqSeq);
+    imgEl.referrerPolicy = "no-referrer";
+    imgEl.dataset.reqId = reqId;
+    imgEl.dataset.pokeId = String(pokemon.id);
+    imgEl.dataset.isBack = "1";
+    imgEl.classList.remove("is-pixel-sprite", "is-over-shoulder-back", "offline-shiny-tint");
+
+    var backKey = pokemon.id + (useShiny ? "_bs" : "_bn");
+    var builtinMap = window.BUILTIN_BACK_SPRITES || {};
+    var offlineMap = window.OFFLINE_SPRITE_DATA_URIS || {};
+
+    // 1순위: 로컬 사전 번들 뒷모습 데이터(OFFLINE_SPRITE_DATA_URIS['25_bn' 등])
+    if (offlineMap[backKey]) {
+      imgEl.onload = null;
+      imgEl.onerror = null;
+      imgEl.src = offlineMap[backKey];
+      imgEl.dataset.backSource = "offline_bundle";
+      return;
+    }
+
+    var pfx = useShiny ? "shiny/" : "";
+    var isOfflineNow = (typeof navigator !== "undefined" && navigator.onLine === false);
+    var candidates = [];
+    if (!isOfflineNow && window.HAS_LOCAL_SPRITES_DIR && typeof window.location !== "undefined" && window.location.protocol !== "blob:") {
+      candidates.push("./sprites/back/" + pfx + pokemon.id + ".png");
+    }
+    if (!isOfflineNow) {
+      candidates.push("https://cdn.jsdelivr.net/gh/PokeAPI/sprites@master/sprites/pokemon/back/" + pfx + pokemon.id + ".png");
+      candidates.push("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/" + pfx + pokemon.id + ".png");
+      if (useShiny) {
+        candidates.push("https://cdn.jsdelivr.net/gh/PokeAPI/sprites@master/sprites/pokemon/back/" + pokemon.id + ".png");
+      }
+    }
+
+    function useFallbackBackView() {
+      if (imgEl.dataset.reqId !== reqId) return;
+      // 기본 스타팅 5종(피카츄·이상해씨·파이리·꼬부기·이브이)은 정밀 제작된 내장 뒷모습 일러스트 즉시 표시!
+      if (builtinMap[backKey] || builtinMap[pokemon.id + "_bn"]) {
+        imgEl.onerror = null;
+        imgEl.src = builtinMap[backKey] || builtinMap[pokemon.id + "_bn"];
+        imgEl.dataset.backSource = "builtin_svg";
+        return;
+      }
+      // 8·9세대 등 공식 back 도트가 없는 종이거나 오프라인일 때: 캐시된 실물 스프라이트를 우상단 대각선 어깨너머 시점으로 표시, 없으면 뒷모습 SVG!
+      lookupCachedPokemonBlobUrl(pokemon, !!useShiny, function (cachedHit) {
+        if (imgEl.dataset.reqId !== reqId) return;
+        if (cachedHit && cachedHit.url) {
+          imgEl.classList.add("is-over-shoulder-back");
+          imgEl.onerror = function () {
+            if (imgEl.dataset.reqId !== reqId) return;
+            imgEl.classList.remove("is-over-shoulder-back");
+            imgEl.src = makePartnerBackFallbackSvg(pokemon, useShiny);
+            imgEl.dataset.backSource = "fallback_svg";
+          };
+          imgEl.src = cachedHit.url;
+          imgEl.dataset.backSource = "over_shoulder";
+        } else if (!isOfflineNow) {
+          var frontUrl = getSpriteUrlBases().home + (useShiny ? "shiny/" : "") + pokemon.id + ".png";
+          imgEl.classList.add("is-over-shoulder-back");
+          imgEl.onerror = function () {
+            if (imgEl.dataset.reqId !== reqId) return;
+            imgEl.classList.remove("is-over-shoulder-back");
+            imgEl.src = makePartnerBackFallbackSvg(pokemon, useShiny);
+            imgEl.dataset.backSource = "fallback_svg";
+          };
+          imgEl.src = frontUrl;
+          imgEl.dataset.backSource = "over_shoulder_live";
+        } else {
+          imgEl.src = makePartnerBackFallbackSvg(pokemon, useShiny);
+          imgEl.dataset.backSource = "fallback_svg";
+        }
+      });
+    }
+
+    // poke-sprites-v1 캐시 내 공식 back 스프라이트 우선 확인
+    if (canUseSpriteCacheStorage()) {
+      window.caches.open("poke-sprites-v1").then(function (cache) {
+        var checkUrls = [
+          "https://cdn.jsdelivr.net/gh/PokeAPI/sprites@master/sprites/pokemon/back/" + pfx + pokemon.id + ".png",
+          "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/" + pfx + pokemon.id + ".png"
+        ];
+        var idx = 0;
+        function nextCache() {
+          if (imgEl.dataset.reqId !== reqId) return;
+          if (idx >= checkUrls.length) {
+            tryNetworkCandidates(0);
+            return;
+          }
+          var u = checkUrls[idx++];
+          cache.match(u).then(function (resp) {
+            if (resp && resp.ok) {
+              resp.blob().then(function (blob) {
+                if (imgEl.dataset.reqId !== reqId) return;
+                var bUrl = URL.createObjectURL(blob);
+                imgEl.classList.add("is-pixel-sprite");
+                imgEl.src = bUrl;
+                imgEl.dataset.backSource = "cache_back_png";
+              });
+            } else {
+              nextCache();
+            }
+          }).catch(nextCache);
+        }
+        nextCache();
+      }).catch(function () { tryNetworkCandidates(0); });
+    } else {
+      tryNetworkCandidates(0);
+    }
+
+    function tryNetworkCandidates(cIdx) {
+      if (imgEl.dataset.reqId !== reqId) return;
+      if (cIdx >= candidates.length) {
+        useFallbackBackView();
+        return;
+      }
+      var tryUrl = candidates[cIdx];
+      imgEl.onload = function () {
+        if (imgEl.dataset.reqId !== reqId) return;
+        var nw = imgEl.naturalWidth || 0;
+        imgEl.classList.toggle("is-pixel-sprite", nw > 0 && nw <= 136);
+        imgEl.dataset.backSource = "official_back_png";
+        if (canUseSpriteCacheStorage() && tryUrl.indexOf("https://") === 0) {
+          window.caches.open("poke-sprites-v1").then(function (c) { c.add(tryUrl).catch(function () {}); });
+        }
+      };
+      imgEl.onerror = function () {
+        if (imgEl.dataset.reqId !== reqId) return;
+        tryNetworkCandidates(cIdx + 1);
+      };
+      imgEl.src = tryUrl;
+    }
+  }
+
+  function updatePartnerButtonsUI() {
+    var partner = getPartnerPokemon();
+    var pTitleBtn = document.getElementById("btn-open-partner-title");
+    if (pTitleBtn) {
+      pTitleBtn.textContent = "🤝 파트너: " + (state.partnerShiny ? "✨" : "") + partner.name;
+    }
+    var pTopBtn = document.getElementById("btn-top-partner");
+    if (pTopBtn) {
+      pTopBtn.textContent = "🤝 " + (state.partnerShiny ? "✨" : "") + partner.name;
+      pTopBtn.classList.toggle("hidden", state.screen === "battle");
+    }
+  }
+
+  function renderPartnerInBattle() {
+    var partner = getPartnerPokemon();
+    var pNameEl = document.getElementById("battle-partner-name");
+    if (pNameEl) {
+      pNameEl.textContent = (state.partnerShiny ? "✨ " : "") + partner.name;
+    }
+    var pTypesEl = document.getElementById("battle-partner-types");
+    if (pTypesEl) {
+      pTypesEl.innerHTML = renderTypeBadgesHtml(partner.types);
+    }
+    var pImgEl = document.getElementById("battle-partner-img");
+    if (pImgEl) {
+      applyPartnerBackImage(pImgEl, partner, !!state.partnerShiny);
+    }
+  }
+
+  function triggerPartnerAttackMotion() {
+    var wrap = document.querySelector(".partner-art-wrap");
+    if (!wrap) return;
+    wrap.classList.remove("attack-lunge");
+    void wrap.offsetWidth;
+    wrap.classList.add("attack-lunge");
+    setTimeout(function () { wrap.classList.remove("attack-lunge"); }, 460);
+  }
+
+  function openPartnerSelectModal() {
+    window.SoundFX.click();
+    renderPartnerSelectModal();
+    var modal = document.getElementById("partner-select-modal");
+    if (modal) modal.classList.remove("hidden");
+  }
+
+  function renderPartnerSelectModal() {
+    var curPartner = getPartnerPokemon();
+    var frontImg = document.getElementById("partner-preview-front-img");
+    var backImg = document.getElementById("partner-preview-back-img");
+    var titleEl = document.getElementById("partner-preview-title");
+    var typesEl = document.getElementById("partner-preview-types");
+    if (frontImg) applyPokemonImage(frontImg, curPartner, !!state.partnerShiny);
+    if (backImg) applyPartnerBackImage(backImg, curPartner, !!state.partnerShiny);
+    if (titleEl) {
+      titleEl.textContent = (state.partnerShiny ? "✨ 색이 다른 " : "") + padDexNum(curPartner.id) + " " + curPartner.name;
+    }
+    if (typesEl) {
+      typesEl.innerHTML = renderTypeBadgesHtml(curPartner.types);
+    }
+
+    var grid = document.getElementById("partner-candidates-grid");
+    if (!grid) return;
+
+    // 후보 목록 구성: 기본 스타팅 5종 + 보유(owned >= 1) 포켓몬 전체 (중복 제거)
+    var seen = {};
+    var cands = [];
+    for (var sIdx = 0; sIdx < STARTER_PARTNER_IDS.length; sIdx++) {
+      var sid = STARTER_PARTNER_IDS[sIdx];
+      var sp = POKEMON_BY_ID[sid];
+      if (sp) {
+        seen[sid] = true;
+        cands.push({ poke: sp, isStarter: true, shiny: false });
+        if (getShinyOwnedCount(sid) >= 1) {
+          cands.push({ poke: sp, isStarter: false, shiny: true });
+        }
+      }
+    }
+    for (var i = 0; i < window.POKEMON_DATA.length; i++) {
+      var p = window.POKEMON_DATA[i];
+      var ownedCnt = getOwnedCount(p.id);
+      if (ownedCnt < 1) continue;
+      var shOwned = getShinyOwnedCount(p.id);
+      var normalOwned = Math.max(0, ownedCnt - shOwned);
+      if (!seen[p.id] && (normalOwned >= 1 || shOwned === 0)) {
+        seen[p.id] = true;
+        cands.push({ poke: p, isStarter: false, shiny: false });
+      }
+      if (shOwned >= 1 && STARTER_PARTNER_IDS.indexOf(p.id) === -1) {
+        cands.push({ poke: p, isStarter: false, shiny: true });
+      }
+    }
+
+    var html = "";
+    for (var ci = 0; ci < cands.length; ci++) {
+      var item = cands[ci];
+      var isSel = (curPartner.id === item.poke.id && (!!state.partnerShiny === !!item.shiny));
+      var owned = getOwnedCount(item.poke.id);
+      var tagTxt = item.shiny
+        ? ("✨ 이로치 보유 " + getShinyOwnedCount(item.poke.id))
+        : (owned >= 1 ? ("🎒 보유 " + owned + "마리") : "🌟 기본 파트너");
+      html +=
+        '<button type="button" class="partner-cand-card' + (isSel ? ' selected' : '') + '" data-pid="' + item.poke.id + '" data-pshiny="' + (item.shiny ? '1' : '0') + '">' +
+          '<img class="partner-cand-img" alt="' + item.poke.name + '" referrerpolicy="no-referrer" decoding="async" />' +
+          '<span class="partner-cand-name">' + (item.shiny ? '✨ ' : '') + item.poke.name + '</span>' +
+          '<span class="partner-cand-tag">' + (isSel ? '⭐ 현재 파트너' : tagTxt) + '</span>' +
+        '</button>';
+    }
+    grid.innerHTML = html;
+
+    var cards = grid.querySelectorAll(".partner-cand-card");
+    for (var k = 0; k < cards.length; k++) {
+      (function (cardEl, itemObj) {
+        var cImg = cardEl.querySelector(".partner-cand-img");
+        applyPokemonImage(cImg, itemObj.poke, itemObj.shiny);
+        cardEl.addEventListener("click", function () {
+          setPartnerPokemon(itemObj.poke.id, itemObj.shiny);
+          window.SoundFX.correct();
+      if (state.screen === 'battle') triggerPartnerAttackMotion();
+          renderPartnerSelectModal();
+        });
+      })(cards[k], cands[k]);
+    }
   }
 
   function applyPokemonImage(imgEl, pokemon, useShiny) {
@@ -2126,7 +2467,7 @@
       btnLevel.classList.add("hidden");
       centerLabel.textContent = battle.isReview
         ? "🌈 오답 복습 몬스터볼!"
-        : (battle.isGold ? "✨ 황금 몬스터볼 배틀!" : "⚔️ 야생 포켓몬 배틀!");
+        : (battle.isGold ? "✨ 황금 몬스터볼 배틀!" : (GYM_TITLES_BY_REGION[resolveActiveBattleRegion()] || "⚔️ 포켓몬 체육관 배틀!"));
       return;
     }
 
@@ -3369,8 +3710,13 @@
       ttsEn: picked.ttsEn || ""
     };
     // 수학 문항 중 정답이 0~99 자연수이고 조작 입력기가 켜져 있으면 화면 내 숫자 패드(numpad)로 전환!
+    var needsVisibleChoices = (
+      !cloned.svg &&
+      /다음\s*(숫자|수|중)|어느\s*것|바르게\s*쓴|고르세요/.test(String(cloned.question))
+    );
     if (
       state.interactiveInputsOn &&
+      !needsVisibleChoices &&
       cloned.inputType === "choice" &&
       cloned.subject === "math" &&
       /^(?:0|[1-9]\d?)$/.test(String(cloned.answer).trim()) &&
@@ -3605,13 +3951,23 @@
     }
     document.getElementById("battle-hearts").innerHTML = html;
 
+    var hText = document.getElementById("battle-hearts-count-text");
+    if (hText) {
+      hText.textContent = battle.hearts + " / 3";
+    }
+    var rate = getBattleCatchRate();
+    var pct = Math.round(rate * 100);
+    var rateCls = pct === 100 ? "rate-100" : (pct === 80 ? "rate-80" : "rate-50");
     var ratePill = document.getElementById("battle-catch-rate-pill");
     if (ratePill) {
-      var rate = getBattleCatchRate();
-      var pct = Math.round(rate * 100);
       ratePill.textContent = "🎯 포획 " + pct + "%";
       ratePill.classList.remove("rate-100", "rate-80", "rate-50");
-      ratePill.classList.add(pct === 100 ? "rate-100" : (pct === 80 ? "rate-80" : "rate-50"));
+      ratePill.classList.add(rateCls);
+    }
+    var gaugeFill = document.getElementById("wild-catch-gauge-fill");
+    if (gaugeFill) {
+      gaugeFill.classList.remove("rate-100", "rate-80", "rate-50");
+      gaugeFill.classList.add(rateCls);
     }
   }
 
@@ -3619,8 +3975,55 @@
     return (battle.isShiny ? "✨ 색이 다른 " : "") + padDexNum(battle.pokemon.id) + " " + battle.pokemon.name;
   }
 
+  var GYM_TITLES_BY_REGION = {
+    forest: "🌿 초록 숲 체육관 배틀!",
+    city: "⚡ 반짝 도시 체육관 배틀!",
+    desert: "🔥 모래 사막 체육관 배틀!",
+    sea: "🌊 푸른 바다 체육관 배틀!"
+  };
+
+  function resolveActiveBattleRegion() {
+    if (state.regionId && GYM_TITLES_BY_REGION[state.regionId]) return state.regionId;
+    if (battle.pokemon && battle.pokemon.region && GYM_TITLES_BY_REGION[battle.pokemon.region]) {
+      return battle.pokemon.region;
+    }
+    return "forest";
+  }
+
+  function applyBattleRegionGymTheme(explicitRegion) {
+    var rk = (explicitRegion && GYM_TITLES_BY_REGION[explicitRegion])
+      ? explicitRegion
+      : resolveActiveBattleRegion();
+    var gymBgs = (window.THEME_ASSETS && window.THEME_ASSETS.gymBgs) || {};
+    var gymUrl = gymBgs[rk] || (window.THEME_ASSETS && window.THEME_ASSETS.battleBg) || "";
+
+    var stageCard = document.getElementById("pokemon-stage-card");
+    if (stageCard) {
+      stageCard.setAttribute("data-region", rk);
+      if (gymUrl) {
+        stageCard.style.setProperty("--gym-bg-url", 'url("' + gymUrl + '")');
+      }
+    }
+    var battleScreen = document.getElementById("screen-battle");
+    if (battleScreen && gymUrl) {
+      battleScreen.style.backgroundImage = 'url("' + gymUrl + '")';
+    }
+    if (state.screen === "battle") {
+      var centerLabel = document.getElementById("top-center-label");
+      if (centerLabel && !battle.isReview && !battle.isGold && !battle.isShiny) {
+        centerLabel.textContent = GYM_TITLES_BY_REGION[rk] || "⚔️ 포켓몬 체육관 배틀!";
+      }
+    }
+  }
+
   function renderBattleView() {
     renderHearts();
+    renderPartnerInBattle();
+    applyBattleRegionGymTheme();
+    var caughtMark = document.getElementById('wild-caught-ball-mark');
+    if (caughtMark && battle.pokemon) {
+      caughtMark.classList.toggle('hidden', battle.stage === 'silhouette' || !Boolean(state.caught && state.caught[String(battle.pokemon.id)]));
+    }
     var stageCard = document.getElementById("pokemon-stage-card");
     stageCard.classList.toggle("gold-stage", battle.isGold && !battle.isShiny && !battle.isReview);
     stageCard.classList.toggle("review-stage", battle.isReview && !battle.isShiny);
@@ -4420,6 +4823,8 @@
   }
 
   function startQuizQuestion(qIdx) {
+    var caughtMark2 = document.getElementById('wild-caught-ball-mark');
+    if (caughtMark2 && battle.pokemon) caughtMark2.classList.toggle('hidden', !Boolean(state.caught && state.caught[String(battle.pokemon.id)]));
     battle.stage = "quiz";
     battle.quizIndex = qIdx;
     battle.hadWrongOnCurrentQuiz = false;
@@ -4641,7 +5046,7 @@
     var btnEvo = document.getElementById("filter-btn-evolvable");
     var btnShiny = document.getElementById("filter-btn-shiny");
     btnAll.textContent = "전체 (" + allCnt + ")";
-    btnCaught.textContent = "📖 도감 등록 (" + caughtCnt + ")";
+    btnCaught.textContent = (caughtCnt === 0 ? "잡은 포켓몬 (0)" : ("📖 도감 등록 (" + caughtCnt + ")"));
     if (btnOwned) btnOwned.textContent = "🎒 보유 포켓몬 (" + ownedSpeciesCnt + "종·" + totalOwnedCnt + "마리)";
     if (btnEvo) btnEvo.textContent = "🧬 진화 가능 (" + evoCnt + ")";
     btnShiny.textContent = "✨ 색이 다른 (" + shinyCnt + ")";
@@ -4843,8 +5248,8 @@
         if (nextEvos.length > 0 && curOwned < 1) {
           aHtml =
             '<div class="evo-zero-owned-notice">' +
-            '🎒 현재 보유 중인 <strong>' + poke.name + '</strong>이(가) <strong>0마리</strong>예요 (도감에는 영구 등록됨).<br/>' +
-            '필드에서 <strong>' + poke.name + '</strong>을(를) 새로 잡으면 또 진화시킬 수 있어요!' +
+            '🎒 현재 보유 중인 <strong>' + poke.name + '</strong>' + josa(poke.name, '이/가') + ' <strong>0마리</strong>예요 (도감에는 영구 등록됨).<br/>' +
+            '필드에서 <strong>' + poke.name + '</strong>' + josa(poke.name, '을/를') + ' 새로 잡으면 또 진화시킬 수 있어요!' +
             "</div>";
         } else {
           for (var ei = 0; ei < nextEvos.length; ei++) {
@@ -4877,6 +5282,22 @@
             if (chosenEvo) triggerPokemonEvolution(poke, chosenEvo);
           });
         }
+      }
+    }
+
+    var setPartnerBtn = document.getElementById("btn-modal-set-partner");
+    if (setPartnerBtn) {
+      var canPartner = isPartnerSelectable(poke.id);
+      var wantShiny = !!(showShiny && getShinyOwnedCount(poke.id) >= 1);
+      var isAlreadyPartner = (Number(state.partnerId) === poke.id && (!!state.partnerShiny === wantShiny));
+      setPartnerBtn.disabled = !canPartner;
+      setPartnerBtn.classList.toggle("is-active-partner", isAlreadyPartner);
+      if (isAlreadyPartner) {
+        setPartnerBtn.textContent = "⭐ 현재 내 파트너!";
+      } else if (canPartner) {
+        setPartnerBtn.textContent = wantShiny ? "🤝 ✨이로치 파트너 설정" : "🤝 파트너로 설정";
+      } else {
+        setPartnerBtn.textContent = "🎒 보유 시 파트너 가능";
       }
     }
 
@@ -4952,6 +5373,12 @@
       }
       state.caught[pid] = prev;
     }
+    // 파트너 포켓몬 자동 진화 승계: 내 현재 파트너 개체가 진화해 0마리가 되면 진화체로 파트너 승계!
+    if (Number(state.partnerId) === fromPoke.id && fromRec.owned === 0) {
+      state.partnerId = toPoke.id;
+      state.partnerShiny = !!(evolvingShiny && getShinyOwnedCount(toPoke.id) >= 1);
+    }
+    updatePartnerButtonsUI();
     saveState();
 
     window.SoundFX.evolveFanfare();
@@ -5101,6 +5528,8 @@
   }
 
   function initSaveManageEvents() {
+    var btnFromLevel = document.getElementById("btn-level-save-manage");
+    if (btnFromLevel) btnFromLevel.addEventListener("click", openSaveManageModal);
     var btnFromProg = document.getElementById("btn-progress-save-manage");
     if (btnFromProg) btnFromProg.addEventListener("click", openSaveManageModal);
 
@@ -6219,6 +6648,48 @@
     return false;
   }
 
+  function attachHorizontalDragSlider(el) {
+    if (!el || el.dataset.sliderBound === "1") return;
+    el.dataset.sliderBound = "1";
+    var isDown = false;
+    var startX = 0;
+    var origScroll = 0;
+    var dragged = false;
+
+    el.addEventListener("mousedown", function (e) {
+      isDown = true;
+      dragged = false;
+      startX = e.pageX - el.offsetLeft;
+      origScroll = el.scrollLeft;
+    });
+    window.addEventListener("mouseup", function () {
+      isDown = false;
+    });
+    el.addEventListener("mousemove", function (e) {
+      if (!isDown) return;
+      var x = e.pageX - el.offsetLeft;
+      var walk = x - startX;
+      if (Math.abs(walk) > 5) {
+        dragged = true;
+        e.preventDefault();
+        el.scrollLeft = origScroll - walk;
+      }
+    });
+    el.addEventListener("click", function (e) {
+      if (dragged) {
+        e.stopPropagation();
+        e.preventDefault();
+        dragged = false;
+      }
+    }, true);
+    el.addEventListener("wheel", function (e) {
+      if (el.scrollWidth > el.clientWidth && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        el.scrollLeft += e.deltaY;
+        e.preventDefault();
+      }
+    }, { passive: false });
+  }
+
   function init() {
     applyAnimeThemeBackgrounds();
     loadState();
@@ -6229,9 +6700,46 @@
     populateGenerationSelect();
     initImageProviders();
     bindEvents();
+    attachHorizontalDragSlider(document.getElementById("main-top-bar"));
+    attachHorizontalDragSlider(document.querySelector(".pokedex-toolbar .filter-tabs"));
     initPwaSupport();
     initOfflineSpriteSystem();
-    initSaveManageEvents();
+    (function initPartnerEvents() {
+      var btnTitleP = document.getElementById("btn-open-partner-title");
+      if (btnTitleP) btnTitleP.addEventListener("click", openPartnerSelectModal);
+      var btnTopP = document.getElementById("btn-top-partner");
+      if (btnTopP) btnTopP.addEventListener("click", openPartnerSelectModal);
+      var btnBattleP = document.getElementById("btn-battle-change-partner");
+      if (btnBattleP) btnBattleP.addEventListener("click", function () {
+        if (battle.locked && battle.stage === "catching") return;
+        openPartnerSelectModal();
+      });
+      var btnCloseP = document.getElementById("btn-close-partner-modal");
+      var modalP = document.getElementById("partner-select-modal");
+      if (btnCloseP && modalP) {
+        btnCloseP.addEventListener("click", function () {
+          window.SoundFX.click();
+          modalP.classList.add("hidden");
+        });
+        modalP.addEventListener("click", function (ev) {
+          if (ev.target === modalP) modalP.classList.add("hidden");
+        });
+      }
+      var btnDexSetP = document.getElementById("btn-modal-set-partner");
+      if (btnDexSetP) {
+        btnDexSetP.addEventListener("click", function () {
+          var poke = modalState.pokemon;
+          if (!poke || !isPartnerSelectable(poke.id)) return;
+          var wantShiny = !!(modalState.showingShiny && getShinyOwnedCount(poke.id) >= 1);
+          setPartnerPokemon(poke.id, wantShiny);
+          window.SoundFX.evolveFanfare();
+          modalState.justEvolvedMsg = "🤝 " + (wantShiny ? "✨색이 다른 " : "") + poke.name + josa(poke.name, "이/가") + " 내 배틀 파트너로 설정되었어요!";
+          updateDexModalContent();
+          if (state.screen === "pokedex") renderPokedexScreen();
+        });
+      }
+    })();
+        initSaveManageEvents();
     restoreFromIndexedDbIfEmpty(function (restored) { if (restored) refreshCurrentScreenViews(); });
     if (!handleLaunchShortcutAction()) {
       showScreen("title");
@@ -6283,6 +6791,9 @@
     openOfflinePackModal: openOfflinePackModal,
     openSaveManageModal: openSaveManageModal,
     resetLearningProgressOnly: resetLearningProgressOnly,
+    getPartnerPokemon: getPartnerPokemon,
+    setPartnerPokemon: setPartnerPokemon,
+    openPartnerSelectModal: openPartnerSelectModal,
     getOwnedCount: getOwnedCount,
     getBattleCatchRate: getBattleCatchRate,
     setForceNextCatchRoll: function (val) { state.forceNextCatchRoll = val; },
@@ -6290,9 +6801,20 @@
     downloadOfflineSpritePack: downloadOfflineSpritePack,
     auditOfflineSpriteCache: auditOfflineSpriteCache,
     getOfflinePackStats: function () { return offlinePackState; },
-    startTestBattleWithPokemon: function (pokeId, isShiny) {
+    loadCustomBattleQuiz: function (rawQ, forceNumpad) {
+      if (forceNumpad) state.forceInputTypeNext = 'numpad';
+      var bq = cloneQuestionForBattle(rawQ, battle.pokemon || window.POKEMON_DATA[0]);
+      battle.quizzes[0] = bq;
+      startQuizQuestion(0);
+      return bq;
+    },
+    startTestBattleWithPokemon: function (pokeId, isShiny, explicitRegion) {
       var pObj = POKEMON_BY_ID[Number(pokeId)] || window.POKEMON_DATA[0];
-      state.regionId = pObj.region || 'city';
+      if (explicitRegion) {
+        state.regionId = explicitRegion;
+      } else if (!state.regionId || !GYM_TITLES_BY_REGION[state.regionId]) {
+        state.regionId = pObj.region || 'forest';
+      }
       battle.active = true;
       battle.isGold = false;
       battle.isReview = false;
