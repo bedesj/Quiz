@@ -4512,6 +4512,80 @@
     };
   }
 
+  // ---------------- 2학년 표와 ○ 그래프, 3학년 그림그래프 ----------------
+  // 문제 첫 줄들에 적힌 자료를 표·그래프 그림으로 바꾸고, 글에는 물음만 남긴다. 그릴 수 없으면 null.
+  function buildAutoPicto(quizObj, questionText) {
+    if (!isMathQuiz(quizObj) || quizObj.svg || (quizObj.unit !== "md5" && quizObj.unit !== "mf6")) return null;
+    var lines = String(questionText || "").split("\n"), W = 340, H = 168, INK = "#232538", esc = escapeHtmlText, body = "";
+    var head = lines[0].match(/^\[(.+?)\] (.+)$/);
+    if (!head || lines.length < 2) return null;
+    var parseRows = function (t) { var rs = t.split(", ").map(function (x) { var r = x.match(/^(.*?) ?(\d+)(\D*)$/); return r && r[1] ? { name: r[1], v: Number(r[2]), u: r[3].trim() } : null; }); return rs.length >= 1 && rs.every(Boolean) ? rs : null; };
+    var T = function (x, y, t, s, a, c) { return '<text x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" text-anchor="' + (a || "middle") + '" font-size="' + (s || 12) + '" fill="' + (c || INK) + '">' + esc(t) + "</text>"; };
+    var rows, rest;
+    if (quizObj.unit === "md5") {
+      rows = parseRows(head[2]); rest = lines.slice(1).join("\n");
+      if (!rows || rows.length < 2 || rows.length > 5 || rows.some(function (r) { return r.v > 10 || r.v < 0; })) return null;
+      var unit = rows[0].u, n = rows.length;
+      if (/가장 (많은|적은)/.test(rest)) {
+        // ○를 아래에서부터 쌓아 올린 그래프
+        var maxV = Math.max(5, Math.max.apply(null, rows.map(function (r) { return r.v; }))), x0 = 46, y0 = 138, top = 26, rh = (y0 - top) / maxV, cw = (W - x0 - 16) / n, rr = Math.min(6, rh / 2 - 0.8);
+        body += T(W / 2, 17, head[1]);
+        for (var g = 0; g <= maxV; g++) { var gy = y0 - rh * g; body += '<line x1="' + x0 + '" y1="' + gy.toFixed(1) + '" x2="' + (W - 16) + '" y2="' + gy.toFixed(1) + '" stroke="' + (g === 0 ? INK : "#dfe3ee") + '" stroke-width="' + (g === 0 ? 1.5 : 1) + '"/>'; if (g > 0) body += T(x0 - 5, gy + rh / 2 + 3.5, String(g), 9, "end", "#555b70"); }
+        for (var c = 0; c <= n; c++) body += '<line x1="' + (x0 + cw * c).toFixed(1) + '" y1="' + top + '" x2="' + (x0 + cw * c).toFixed(1) + '" y2="' + y0 + '" stroke="' + (c === 0 ? INK : "#dfe3ee") + '" stroke-width="' + (c === 0 ? 1.5 : 1) + '"/>';
+        body += T(x0 - 5, top - 3, "(" + unit + ")", 8, "end", "#555b70");
+        rows.forEach(function (r, i) {
+          var cx = x0 + cw * (i + 0.5);
+          for (var k = 0; k < r.v; k++) body += '<circle cx="' + cx.toFixed(1) + '" cy="' + (y0 - rh * (k + 0.5)).toFixed(1) + '" r="' + rr.toFixed(1) + '" fill="#ffd9a8" stroke="#e8590c" stroke-width="1.6"/>';
+          body += T(cx, y0 + 15, r.name, r.name.length > 4 ? 10 : 12);
+        });
+      } else {
+        // 표
+        var tx = 14, tw = W - 28, hw = 58, cw2 = (tw - hw) / n, ty = 52, th = 34;
+        body += T(W / 2, 32, head[1], 13);
+        body += '<rect x="' + tx + '" y="' + ty + '" width="' + tw + '" height="' + th + '" fill="#e7f1ff"/><rect x="' + tx + '" y="' + ty + '" width="' + tw + '" height="' + (th * 2) + '" fill="none" stroke="' + INK + '" stroke-width="2"/><line x1="' + tx + '" y1="' + (ty + th) + '" x2="' + (tx + tw) + '" y2="' + (ty + th) + '" stroke="' + INK + '" stroke-width="1.5"/>';
+        body += T(tx + hw / 2, ty + th / 2 + 4, "종류", 11) + T(tx + hw / 2, ty + th * 1.5 + 4, "수(" + unit + ")", 11);
+        rows.forEach(function (r, i) {
+          var lx = tx + hw + cw2 * i;
+          body += '<line x1="' + lx.toFixed(1) + '" y1="' + ty + '" x2="' + lx.toFixed(1) + '" y2="' + (ty + th * 2) + '" stroke="' + INK + '" stroke-width="1.5"/>' + T(lx + cw2 / 2, ty + th / 2 + 4, r.name, r.name.length > 4 ? 10 : 12) + T(lx + cw2 / 2, ty + th * 1.5 + 6, String(r.v), 16);
+        });
+      }
+    } else {
+      // 그림그래프: ◎ = 10, ○ = 1
+      var lg = head[2].match(/^◎ = (\d+)(\D+), ○ = (\d+)/);
+      if (!lg || Number(lg[1]) !== 10 || Number(lg[3]) !== 1) return null;
+      var dataLines = lines.slice(1, -1); rest = lines[lines.length - 1];
+      if (!dataLines.length) return null;
+      rows = [];
+      if (/◎|○/.test(dataLines[0])) {
+        for (var d = 0; d < dataLines.length; d++) { var dm = dataLines[d].match(/^(.+?): ([◎○]+)$/); if (!dm) return null; rows.push({ name: dm[1], big: dm[2].split("◎").length - 1, small: dm[2].split("○").length - 1 }); }
+      } else {
+        var pr = dataLines.length === 1 ? parseRows(dataLines[0]) : null;
+        if (!pr) return null;
+        rows = pr.map(function (r) { return { name: r.name, big: Math.floor(r.v / 10), small: r.v % 10 }; });
+      }
+      if (rows.length > 4 || rows.some(function (r) { return r.big > 9 || r.small > 9; })) return null;
+      var nameW = 76, gx = 12, gw = W - 24, gy0 = 26, legH = 20, rh2 = Math.min(30, (H - gy0 - legH - 8) / rows.length), gh = rh2 * rows.length, oy = gy0 + (H - gy0 - legH - 8 - gh) / 2;
+      var BIG = function (x, y) { return '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="7.5" fill="#ffd9a8" stroke="#e8590c" stroke-width="1.6"/><circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="3.6" fill="none" stroke="#e8590c" stroke-width="1.4"/>'; };
+      var SML = function (x, y) { return '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="4.4" fill="#ffffff" stroke="#e8590c" stroke-width="1.5"/>'; };
+      body += T(W / 2, 17, head[1]);
+      body += '<rect x="' + gx + '" y="' + oy.toFixed(1) + '" width="' + nameW + '" height="' + gh.toFixed(1) + '" fill="#e7f1ff"/><rect x="' + gx + '" y="' + oy.toFixed(1) + '" width="' + gw + '" height="' + gh.toFixed(1) + '" fill="none" stroke="' + INK + '" stroke-width="2"/><line x1="' + (gx + nameW) + '" y1="' + oy.toFixed(1) + '" x2="' + (gx + nameW) + '" y2="' + (oy + gh).toFixed(1) + '" stroke="' + INK + '" stroke-width="1.5"/>';
+      rows.forEach(function (r, i) {
+        var cy = oy + rh2 * (i + 0.5), sx = gx + nameW + 14;
+        if (i > 0) body += '<line x1="' + gx + '" y1="' + (oy + rh2 * i).toFixed(1) + '" x2="' + (gx + gw) + '" y2="' + (oy + rh2 * i).toFixed(1) + '" stroke="' + INK + '" stroke-width="1.2"/>';
+        body += T(gx + nameW / 2, cy + 4, r.name, r.name.length > 5 ? 10 : 12);
+        for (var b = 0; b < r.big; b++) { body += BIG(sx, cy); sx += 18; }
+        if (r.big && r.small) sx += 2;
+        for (var s2 = 0; s2 < r.small; s2++) { body += SML(sx - 3, cy); sx += 11.5; }
+      });
+      var ly = H - 13, lx0 = W / 2 - 78;
+      body += BIG(lx0, ly - 4) + T(lx0 + 12, ly, "= 10" + lg[2], 11, "start") + SML(lx0 + 92, ly - 4) + T(lx0 + 101, ly, "= 1" + lg[2], 11, "start");
+    }
+    return {
+      svg: '<svg viewBox="0 0 ' + W + " " + H + '" xmlns="http://www.w3.org/2000/svg" role="img" font-family="inherit" font-weight="700"><rect x="0" y="0" width="' + W + '" height="' + H + '" rx="10" fill="#ffffff" stroke="' + INK + '" stroke-width="2"/>' + body + "</svg>",
+      text: rest
+    };
+  }
+
   function buildAutoChart(quizObj, questionText) {
     if (!isMathQuiz(quizObj) || quizObj.svg) return null;
     var kind = AUTO_CHART_UNITS[quizObj.unit];
@@ -4571,7 +4645,7 @@
   }
 
   function renderQuestionAndChoices(catMeta, questionText, choices, disabledIndices, feedbackMsg, quizObj) {
-    var autoChart = buildAutoChart(quizObj, questionText) || buildAutoShape(quizObj, questionText);
+    var autoChart = buildAutoChart(quizObj, questionText) || buildAutoPicto(quizObj, questionText) || buildAutoShape(quizObj, questionText);
     if (autoChart) questionText = autoChart.text;
     var catTag = document.getElementById("question-category-tag");
     var tierSuffix = (quizObj && quizObj.tier) ? (" · T" + quizObj.tier) : "";
