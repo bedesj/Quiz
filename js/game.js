@@ -4349,7 +4349,45 @@
     return annotateSynergy(cloned, poke);
   }
 
+  var RECENT_QUESTION_MEMORY = 200;   // 최근에 낸 고정 문제를 이만큼 기억해 두고 피한다
+  var RECENT_DYNAMIC_MEMORY = 40;     // 즉석에서 만든 문제는 이만큼 기억해 둔다
+  var recentDynamicKeys = [];
+  var STATIC_ID_LOOKUP = null;
+
+  function dynamicQuestionKey(q) {
+    return [q.subject || q.category || "", q.inputType || "", q.question || "", q.answer || "", (q.choices || []).join(","), q.svg ? String(q.svg).length : ""].join("|");
+  }
+
+  // 문제 하나를 고른다. 즉석에서 만든 문제가 방금 나온 것과 같으면 몇 번 더 만들어 본다.
   function pickSubjectQuestionWithinTier(subj, maxTier, alreadySelected, preferTypes, specificUnitId) {
+    if (!STATIC_ID_LOOKUP) {
+      STATIC_ID_LOOKUP = {};
+      for (var si = 0; si < ALL_STATIC_QUESTIONS.length; si++) STATIC_ID_LOOKUP[ALL_STATIC_QUESTIONS[si].id] = true;
+    }
+    var forced = !!(state.forceInputTypeNext || state.forceVisualSubj);
+    var picked = null, best = null, bestAge = Infinity, bestKey = "";
+    var remember = function (k) {
+      var at = recentDynamicKeys.indexOf(k);
+      if (at !== -1) recentDynamicKeys.splice(at, 1);
+      recentDynamicKeys.push(k);
+      if (recentDynamicKeys.length > RECENT_DYNAMIC_MEMORY) recentDynamicKeys.shift();
+    };
+    for (var attempt = 0; attempt < 10; attempt++) {
+      picked = pickSubjectQuestionOnce(subj, maxTier, alreadySelected, preferTypes, specificUnitId);
+      if (!picked || forced) return picked;
+      if (picked.id && STATIC_ID_LOOKUP[picked.id]) return picked;
+      var key = dynamicQuestionKey(picked);
+      var seenInBattle = (alreadySelected || []).some(function (s) { return dynamicQuestionKey(s) === key; });
+      var age = recentDynamicKeys.lastIndexOf(key);   // -1 이면 최근에 나온 적 없음
+      if (!seenInBattle && age === -1) { remember(key); return picked; }
+      // 모두 최근에 나온 것뿐이면, 그중 가장 오래전에 나온 것을 고른다
+      if (!seenInBattle && age < bestAge) { best = picked; bestAge = age; bestKey = key; }
+    }
+    if (best) { remember(bestKey); return best; }
+    return picked;
+  }
+
+  function pickSubjectQuestionOnce(subj, maxTier, alreadySelected, preferTypes, specificUnitId) {
     var cappedTier = Math.max(1, Math.min(10, Number(maxTier) || 2));
 
     // 강제 조작 입력기 테스트/미리보기 요청 처리
@@ -4422,11 +4460,22 @@
       });
     }
 
-    var fresh = candidates.filter(function (q) {
-      return state.recentQuestionIds.indexOf(q.id) === -1 &&
-             alreadySelected.every(function (s) { return s.id !== q.id; });
+    // 이번 배틀에서 이미 고른 문제는 뺀다
+    var notInBattle = candidates.filter(function (q) {
+      return alreadySelected.every(function (s) { return s.id !== q.id; });
     });
-    var pool = fresh.length > 0 ? fresh : candidates;
+    if (notInBattle.length > 0) candidates = notInBattle;
+    var fresh = candidates.filter(function (q) {
+      return state.recentQuestionIds.indexOf(q.id) === -1;
+    });
+    var pool = fresh;
+    if (pool.length === 0) {
+      // 뽑을 수 있는 문제가 모두 최근에 나온 문제이면, 가장 오래전에 나온 것들 가운데에서 고른다
+      var ranked = candidates.slice().sort(function (a, b) {
+        return state.recentQuestionIds.lastIndexOf(a.id) - state.recentQuestionIds.lastIndexOf(b.id);
+      });
+      pool = ranked.slice(0, Math.max(1, Math.ceil(ranked.length / 3)));
+    }
 
     if (preferTypes && preferTypes.length > 0) {
       var synPool = pool.filter(function (q) {
@@ -4438,7 +4487,7 @@
     var chosen = pool[Math.floor(Math.random() * pool.length)];
     if (chosen) {
       state.recentQuestionIds.push(chosen.id);
-      if (state.recentQuestionIds.length > 70) state.recentQuestionIds.shift();
+      if (state.recentQuestionIds.length > RECENT_QUESTION_MEMORY) state.recentQuestionIds.shift();
     }
     return chosen;
   }
