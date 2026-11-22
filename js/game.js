@@ -115,7 +115,12 @@
     forceNextCatchRoll: null,
     forceVisualSubj: "",
     forceInputTypeNext: "", // 'numpad' | 'hangul_assemble' | 'hanja_trace'
-    forcedBattleUnit: null // { subject, unitId }
+    forcedBattleUnit: null, // { subject, unitId }
+    specialForms: {
+      activeByBaseId: {},   // { "6": "charizard-mega-x", "382": "kyogre-primal", ... }
+      expiresByBaseId: {},  // { "6": 1700000000000 } (메가진화·원시회귀 시간제한 만료 시각)
+      partnerFormKey: null  // 현재 파트너가 메가·원시·합체 중이면 해당 폼 키
+    }
   };
 
   var interactiveState = {
@@ -549,6 +554,38 @@
     if (parsed.dailyRoutine && typeof parsed.dailyRoutine === "object") {
       state.dailyRoutine = parsed.dailyRoutine;
     }
+    if (parsed.specialForms && typeof parsed.specialForms === "object") {
+      var loadedActive = (parsed.specialForms.activeByBaseId && typeof parsed.specialForms.activeByBaseId === "object") ? parsed.specialForms.activeByBaseId : {};
+      var loadedExpires = (parsed.specialForms.expiresByBaseId && typeof parsed.specialForms.expiresByBaseId === "object") ? parsed.specialForms.expiresByBaseId : {};
+      var nowTs = Date.now();
+      var cleanActive = {};
+      var cleanExpires = {};
+      Object.keys(loadedActive).forEach(function (bid) {
+        var fKey = loadedActive[bid];
+        var fObj = (fKey && typeof window.getSpecialFormByKey === "function") ? window.getSpecialFormByKey(fKey) : null;
+        if (!fObj) return;
+        var durMs = typeof window.getSpecialFormDurationMs === "function" ? window.getSpecialFormDurationMs(fObj) : null;
+        if (durMs && durMs > 0) {
+          var expVal = Number(loadedExpires[bid]);
+          if (!(expVal > 0)) {
+            expVal = nowTs + durMs;
+          }
+          if (expVal <= nowTs) return;
+          cleanActive[bid] = fObj.key;
+          cleanExpires[bid] = expVal;
+        } else {
+          cleanActive[bid] = fObj.key;
+        }
+      });
+      var curPartnerKey = cleanActive[String(state.partnerId || 25)] || null;
+      state.specialForms = {
+        activeByBaseId: cleanActive,
+        expiresByBaseId: cleanExpires,
+        partnerFormKey: curPartnerKey
+      };
+    } else {
+      state.specialForms = { activeByBaseId: {}, expiresByBaseId: {}, partnerFormKey: null };
+    }
     syncTiersFromUnits();
   }
 
@@ -711,7 +748,8 @@
       evoStones: state.evoStones,
       interactiveInputsOn: state.interactiveInputsOn,
       routineActive: state.routineActive,
-      dailyRoutine: state.dailyRoutine
+      dailyRoutine: state.dailyRoutine,
+      specialForms: state.specialForms
     };
   }
 
@@ -747,6 +785,7 @@
     state.evoStones = 1;
     state.interactiveInputsOn = true;
     state.routineActive = false;
+    state.specialForms = { activeByBaseId: {}, expiresByBaseId: {}, partnerFormKey: null };
     state.dailyRoutine = {
       date: "",
       altSubject: "english",
@@ -1652,6 +1691,250 @@
 
   var STARTER_PARTNER_IDS = [25, 1, 4, 7, 133];
 
+  function ensureSpecialFormsState() {
+    if (!state.specialForms || typeof state.specialForms !== "object") {
+      state.specialForms = { activeByBaseId: {}, expiresByBaseId: {}, partnerFormKey: null };
+    }
+    if (!state.specialForms.activeByBaseId || typeof state.specialForms.activeByBaseId !== "object") {
+      state.specialForms.activeByBaseId = {};
+    }
+    if (!state.specialForms.expiresByBaseId || typeof state.specialForms.expiresByBaseId !== "object") {
+      state.specialForms.expiresByBaseId = {};
+    }
+    return state.specialForms;
+  }
+
+  function formatRemainingTimeShort(ms) {
+    var totalSec = Math.max(0, Math.ceil(Number(ms || 0) / 1000));
+    var min = Math.floor(totalSec / 60);
+    var sec = totalSec % 60;
+    return min + ":" + (sec < 10 ? "0" : "") + sec;
+  }
+
+  function getSpecialFormRemainingMs(baseId) {
+    var sfState = ensureSpecialFormsState();
+    var bid = String(baseId);
+    var key = sfState.activeByBaseId[bid];
+    if (!key || typeof window.getSpecialFormByKey !== "function") return null;
+    var formObj = window.getSpecialFormByKey(key);
+    if (!formObj) return null;
+    var durMs = typeof window.getSpecialFormDurationMs === "function" ? window.getSpecialFormDurationMs(formObj) : null;
+    if (!durMs) return null;
+    var exp = Number(sfState.expiresByBaseId[bid] || 0);
+    if (!(exp > 0)) return null;
+    return Math.max(0, exp - Date.now());
+  }
+
+  function activateSpecialForm(baseId, formObj) {
+    if (!formObj) return;
+    var sfState = ensureSpecialFormsState();
+    var bid = String(baseId);
+    sfState.activeByBaseId[bid] = formObj.key;
+    var durMs = typeof window.getSpecialFormDurationMs === "function" ? window.getSpecialFormDurationMs(formObj) : null;
+    if (durMs && durMs > 0) {
+      sfState.expiresByBaseId[bid] = Date.now() + durMs;
+    } else {
+      delete sfState.expiresByBaseId[bid];
+    }
+    if (Number(state.partnerId) === Number(baseId)) {
+      sfState.partnerFormKey = formObj.key;
+    }
+  }
+
+  function deactivateSpecialForm(baseId) {
+    var sfState = ensureSpecialFormsState();
+    var bid = String(baseId);
+    delete sfState.activeByBaseId[bid];
+    delete sfState.expiresByBaseId[bid];
+    if (Number(state.partnerId) === Number(baseId)) {
+      sfState.partnerFormKey = null;
+    }
+  }
+
+  function pruneExpiredSpecialForms(silent) {
+    var sfState = ensureSpecialFormsState();
+    var now = Date.now();
+    var expiredIds = [];
+    Object.keys(sfState.expiresByBaseId).forEach(function (bid) {
+      var exp = Number(sfState.expiresByBaseId[bid] || 0);
+      if (exp > 0 && now >= exp) {
+        expiredIds.push(bid);
+      }
+    });
+    if (!expiredIds.length) return false;
+
+    var expiredPartner = false;
+    var expiredModalPoke = null;
+    for (var i = 0; i < expiredIds.length; i++) {
+      var bid = expiredIds[i];
+      var oldKey = sfState.activeByBaseId[bid];
+      var oldForm = (oldKey && typeof window.getSpecialFormByKey === "function") ? window.getSpecialFormByKey(oldKey) : null;
+      delete sfState.activeByBaseId[bid];
+      delete sfState.expiresByBaseId[bid];
+      if (Number(state.partnerId) === Number(bid)) {
+        sfState.partnerFormKey = null;
+        expiredPartner = true;
+      }
+      if (modalState && modalState.pokemon && Number(modalState.pokemon.id) === Number(bid)) {
+        expiredModalPoke = { poke: modalState.pokemon, form: oldForm };
+      }
+    }
+    saveState();
+    if (!silent) {
+      updatePartnerButtonsUI();
+      if (expiredPartner && state.screen === "battle" && battle.active) {
+        renderPartnerInBattle();
+      }
+      if (expiredModalPoke) {
+        var dexModal = document.getElementById("dex-modal");
+        if (dexModal && !dexModal.classList.contains("hidden")) {
+          var kindLabel = (expiredModalPoke.form && expiredModalPoke.form.kind === "primal") ? "원시회귀" : "메가진화";
+          modalState.justSpecialMsg = "⏳ " + kindLabel + " 시간제한이 끝나 원래 모습(" + expiredModalPoke.poke.name + ")으로 돌아왔어요!";
+          updateDexModalContent();
+        }
+      }
+      if (state.screen === "pokedex") {
+        renderPokedexScreen();
+      }
+    }
+    return true;
+  }
+
+  function updateSpecialFormCountdownUI() {
+    var sfState = ensureSpecialFormsState();
+    var hasTimed = Object.keys(sfState.expiresByBaseId).length > 0;
+    if (!hasTimed) return;
+
+    updatePartnerButtonsUI();
+
+    if (state.screen === "battle" && battle.active) {
+      var partner = getPartnerPokemon();
+      var sp = getActiveSpecialFormForBase(partner.id);
+      var spBtn = document.getElementById("btn-battle-special-form");
+      if (spBtn && sp) {
+        var remMs = getSpecialFormRemainingMs(partner.id);
+        if (remMs !== null) {
+          spBtn.textContent = "⏳ " + sp.name + " (" + formatRemainingTimeShort(remMs) + ")";
+        }
+      }
+    }
+
+    var dexModal = document.getElementById("dex-modal");
+    if (dexModal && !dexModal.classList.contains("hidden") && modalState && modalState.pokemon) {
+      var mPoke = modalState.pokemon;
+      var mSp = getActiveSpecialFormForBase(mPoke.id);
+      if (mSp) {
+        var mRem = getSpecialFormRemainingMs(mPoke.id);
+        var spBadge = document.getElementById("modal-special-evo-badge");
+        if (spBadge && mRem !== null) {
+          spBadge.textContent = "⏳ " + formatRemainingTimeShort(mRem) + " · PokéAPI #" + mSp.pokeapiId;
+        }
+        var activeBtn = document.querySelector('#modal-special-evo-actions .special-evo-btn.is-active[data-spkey="' + mSp.key + '"]');
+        if (activeBtn && mRem !== null) {
+          var timeTag = activeBtn.querySelector(".sp-rem-time");
+          if (timeTag) timeTag.textContent = " · ⏳ " + formatRemainingTimeShort(mRem);
+        }
+      }
+    }
+  }
+
+  var specialFormTimerStarted = false;
+  function startSpecialFormCountdownLoop() {
+    if (specialFormTimerStarted) return;
+    specialFormTimerStarted = true;
+    setInterval(function () {
+      pruneExpiredSpecialForms(false);
+      updateSpecialFormCountdownUI();
+    }, 1000);
+  }
+
+  function getActiveSpecialFormForBase(baseId) {
+    var sfState = ensureSpecialFormsState();
+    var bid = String(baseId);
+    var key = sfState.activeByBaseId[bid];
+    if (!key || typeof window.getSpecialFormByKey !== "function") return null;
+    var formObj = window.getSpecialFormByKey(key);
+    if (!formObj) return null;
+    var durMs = typeof window.getSpecialFormDurationMs === "function" ? window.getSpecialFormDurationMs(formObj) : null;
+    if (durMs && durMs > 0) {
+      var exp = Number(sfState.expiresByBaseId[bid] || 0);
+      if (exp > 0 && Date.now() >= exp) {
+        delete sfState.activeByBaseId[bid];
+        delete sfState.expiresByBaseId[bid];
+        if (Number(state.partnerId) === Number(baseId)) sfState.partnerFormKey = null;
+        return null;
+      }
+    }
+    return formObj;
+  }
+
+  function getSpecialFormDisplayMeta(formObj) {
+    if (!formObj) return null;
+    var cached = typeof window.getSpecialFormCachedMeta === "function" ? window.getSpecialFormCachedMeta(formObj.key) : null;
+    return {
+      key: formObj.key,
+      kind: formObj.kind,
+      baseId: formObj.baseId,
+      partnerId: formObj.partnerId || null,
+      pokeapiId: formObj.pokeapiId,
+      name: formObj.name,
+      types: (cached && Array.isArray(cached.types) && cached.types.length) ? cached.types : formObj.types,
+      item: formObj.item,
+      ability: formObj.ability,
+      baseStatTotal: cached && cached.baseStatTotal ? cached.baseStatTotal : null,
+      hydrated: !!(cached && cached.hydrated)
+    };
+  }
+
+  function applySpecialFormImage(imgEl, basePoke, formObj, useShiny, isBack) {
+    if (!imgEl || !basePoke || !formObj) return;
+    var reqId = String(++imageReqSeq);
+    imgEl.referrerPolicy = "no-referrer";
+    imgEl.dataset.reqId = reqId;
+    imgEl.dataset.pokeId = String(formObj.pokeapiId || basePoke.id);
+    imgEl.classList.remove("is-pixel-sprite", "is-over-shoulder-back", "offline-shiny-tint", "special-form-aura-mega", "special-form-aura-primal", "special-form-aura-fusion");
+    imgEl.classList.add(formObj.kind === "primal" ? "special-form-aura-primal" : (formObj.kind === "fusion" || formObj.kind === "ultra_burst") ? "special-form-aura-fusion" : "special-form-aura-mega");
+
+    var isOfflineNow = (typeof navigator !== "undefined" && navigator.onLine === false);
+    var cands = (!isOfflineNow && typeof window.buildSpecialFormSpriteCandidates === "function")
+      ? window.buildSpecialFormSpriteCandidates(formObj, !!useShiny, !!isBack)
+      : [];
+
+    function fallbackToBase() {
+      if (imgEl.dataset.reqId !== reqId) return;
+      if (isBack) {
+        applyPartnerBackImage(imgEl, basePoke, !!useShiny);
+      } else {
+        applyPokemonImage(imgEl, basePoke, !!useShiny);
+      }
+      imgEl.classList.add(formObj.kind === "primal" ? "special-form-aura-primal" : (formObj.kind === "fusion" || formObj.kind === "ultra_burst") ? "special-form-aura-fusion" : "special-form-aura-mega");
+    }
+
+    function tryIdx(idx) {
+      if (imgEl.dataset.reqId !== reqId) return;
+      if (idx >= cands.length) {
+        fallbackToBase();
+        return;
+      }
+      var u = cands[idx];
+      imgEl.onload = function () {
+        if (imgEl.dataset.reqId !== reqId) return;
+        var nw = imgEl.naturalWidth || 0;
+        imgEl.classList.toggle("is-pixel-sprite", nw > 0 && nw <= 136);
+      };
+      imgEl.onerror = function () {
+        if (imgEl.dataset.reqId !== reqId) return;
+        tryIdx(idx + 1);
+      };
+      imgEl.src = u;
+    }
+
+    if (typeof window.fetchSpecialFormFromPokeApi === "function" && !isOfflineNow) {
+      window.fetchSpecialFormFromPokeApi(formObj.key, function () {});
+    }
+    tryIdx(0);
+  }
+
   function isPartnerSelectable(pokeId) {
     var nid = Number(pokeId);
     if (STARTER_PARTNER_IDS.indexOf(nid) !== -1) return true;
@@ -1677,6 +1960,8 @@
     if (!POKEMON_BY_ID[nid] || !isPartnerSelectable(nid)) return false;
     state.partnerId = nid;
     state.partnerShiny = !!(useShiny && getShinyOwnedCount(nid) >= 1);
+    if (!state.specialForms) state.specialForms = { activeByBaseId: {}, partnerFormKey: null };
+    state.specialForms.partnerFormKey = state.specialForms.activeByBaseId[String(nid)] || null;
     saveState();
     updatePartnerButtonsUI();
     if (state.screen === "battle" && battle.active) {
@@ -1844,30 +2129,93 @@
 
   function updatePartnerButtonsUI() {
     var partner = getPartnerPokemon();
+    var sp = getActiveSpecialFormForBase(partner.id);
+    var spMeta = sp ? getSpecialFormDisplayMeta(sp) : null;
+    var dispName = spMeta ? spMeta.name : partner.name;
+    var remMs = sp ? getSpecialFormRemainingMs(partner.id) : null;
+    var timeSuffix = (remMs !== null) ? (" (" + formatRemainingTimeShort(remMs) + ")") : "";
     var pTitleBtn = document.getElementById("btn-open-partner-title");
     if (pTitleBtn) {
-      pTitleBtn.textContent = "🤝 파트너: " + (state.partnerShiny ? "✨" : "") + partner.name;
+      pTitleBtn.textContent = "🤝 파트너: " + (state.partnerShiny ? "✨" : "") + dispName + timeSuffix;
     }
     var pTopBtn = document.getElementById("btn-top-partner");
     if (pTopBtn) {
-      pTopBtn.textContent = "🤝 " + (state.partnerShiny ? "✨" : "") + partner.name;
+      pTopBtn.textContent = "🤝 " + (state.partnerShiny ? "✨" : "") + dispName + timeSuffix;
       pTopBtn.classList.toggle("hidden", state.screen === "battle");
     }
   }
 
+  function toggleBattlePartnerSpecialForm() {
+    var partner = getPartnerPokemon();
+    var forms = typeof window.getSpecialFormsForBaseId === "function" ? window.getSpecialFormsForBaseId(partner.id) : [];
+    if (!forms.length) return;
+    if (!state.specialForms) state.specialForms = { activeByBaseId: {}, partnerFormKey: null };
+    var curKey = state.specialForms.activeByBaseId[String(partner.id)] || null;
+    var curIdx = -1;
+    for (var i = 0; i < forms.length; i++) {
+      if (forms[i].key === curKey) { curIdx = i; break; }
+    }
+    var nextForm = (curIdx + 1 < forms.length) ? forms[curIdx + 1] : null;
+    // 합체진화 폼은 파트너 전설이 없어도 배틀 미리보기/소유 시 바로 전환 가능하되, 울트라버스트는 황혼/새벽 다음 순서로 자연 순환
+    if (nextForm) {
+      activateSpecialForm(partner.id, nextForm);
+      if (window.SoundFX && window.SoundFX.evolveFanfare) window.SoundFX.evolveFanfare();
+    } else {
+      deactivateSpecialForm(partner.id);
+      if (window.SoundFX && window.SoundFX.click) window.SoundFX.click();
+    }
+    saveState();
+    updatePartnerButtonsUI();
+    renderPartnerInBattle();
+  }
+
   function renderPartnerInBattle() {
     var partner = getPartnerPokemon();
+    var sp = getActiveSpecialFormForBase(partner.id);
+    var spMeta = sp ? getSpecialFormDisplayMeta(sp) : null;
+    var dispName = spMeta ? spMeta.name : partner.name;
+    var dispTypes = spMeta ? spMeta.types : partner.types;
+
     var pNameEl = document.getElementById("battle-partner-name");
     if (pNameEl) {
-      pNameEl.textContent = (state.partnerShiny ? "✨ " : "") + partner.name;
+      pNameEl.textContent = (state.partnerShiny ? "✨ " : "") + dispName;
     }
     var pTypesEl = document.getElementById("battle-partner-types");
     if (pTypesEl) {
-      pTypesEl.innerHTML = renderTypeBadgesHtml(partner.types);
+      pTypesEl.innerHTML = renderTypeBadgesHtml(dispTypes);
     }
     var pImgEl = document.getElementById("battle-partner-img");
     if (pImgEl) {
-      applyPartnerBackImage(pImgEl, partner, !!state.partnerShiny);
+      if (sp) {
+        applySpecialFormImage(pImgEl, partner, sp, !!state.partnerShiny, true);
+      } else {
+        pImgEl.classList.remove("special-form-aura-mega", "special-form-aura-primal", "special-form-aura-fusion");
+        applyPartnerBackImage(pImgEl, partner, !!state.partnerShiny);
+      }
+    }
+    var spBtn = document.getElementById("btn-battle-special-form");
+    if (spBtn) {
+      var forms = typeof window.getSpecialFormsForBaseId === "function" ? window.getSpecialFormsForBaseId(partner.id) : [];
+      if (!forms.length) {
+        spBtn.classList.add("hidden");
+      } else {
+        spBtn.classList.remove("hidden");
+        spBtn.classList.toggle("is-active", !!sp);
+        if (sp) {
+          var spRemMs = getSpecialFormRemainingMs(partner.id);
+          spBtn.textContent = (spRemMs !== null)
+            ? ("⏳ " + sp.name + " (" + formatRemainingTimeShort(spRemMs) + ")")
+            : ("✨ " + sp.name + " (해제/다음)");
+        } else {
+          var f0 = forms[0];
+          spBtn.textContent = f0.kind === "primal"
+            ? "🌋 원시회귀 (3분)"
+            : f0.kind === "fusion"
+              ? "🧬 합체진화"
+              : "🌈 메가진화 (3분)";
+        }
+        spBtn.onclick = toggleBattlePartnerSpecialForm;
+      }
     }
   }
 
@@ -5806,6 +6154,9 @@
     var wrap3d = document.getElementById("modal-3d-wrap");
     var btn3d = document.getElementById("btn-modal-toggle-3d");
 
+    var activeSp = getActiveSpecialFormForBase(poke.id);
+    var activeSpMeta = activeSp ? getSpecialFormDisplayMeta(activeSp) : null;
+
     if (modalState.showing3d) {
       img.classList.add("hidden");
       wrap3d.classList.remove("hidden");
@@ -5816,12 +6167,17 @@
       wrap3d.classList.add("hidden");
       img.classList.remove("hidden");
       btn3d.textContent = "🧊 3D로 돌려보기";
-      applyPokemonImage(img, poke, showShiny);
+      if (activeSp) {
+        applySpecialFormImage(img, poke, activeSp, showShiny, false);
+      } else {
+        img.classList.remove("special-form-aura-mega", "special-form-aura-primal", "special-form-aura-fusion");
+        applyPokemonImage(img, poke, showShiny);
+      }
     }
 
     document.getElementById("modal-poke-title").textContent =
-      (showShiny ? "✨ " : "") + padDexNum(poke.id) + " " + poke.name + (poke.rare ? " 👑" : "");
-    document.getElementById("modal-poke-types").innerHTML = renderTypeBadgesHtml(poke.types);
+      (showShiny ? "✨ " : "") + padDexNum(poke.id) + " " + (activeSpMeta ? activeSpMeta.name : poke.name) + (poke.rare ? " 👑" : "");
+    document.getElementById("modal-poke-types").innerHTML = renderTypeBadgesHtml(activeSpMeta ? activeSpMeta.types : poke.types);
 
     var reg = window.POKEMON_REGIONS[poke.region];
     var dMap = window.SUBJECT_DOMAIN_TYPE_MAP || {};
@@ -5947,6 +6303,93 @@
         setPartnerBtn.textContent = wantShiny ? "🤝 ✨이로치 파트너 설정" : "🤝 파트너로 설정";
       } else {
         setPartnerBtn.textContent = "🎒 보유 시 파트너 가능";
+      }
+    }
+
+    // 메가진화 · 원시회귀 · 합체진화 (PokéAPI 폼) 패널 렌더링
+    var spSec = document.getElementById("modal-special-evo-section");
+    var spActions = document.getElementById("modal-special-evo-actions");
+    var spBadge = document.getElementById("modal-special-evo-badge");
+    var spFeedback = document.getElementById("modal-special-evo-feedback");
+    if (spSec && spActions) {
+      var spForms = typeof window.getSpecialFormsForBaseId === "function" ? window.getSpecialFormsForBaseId(poke.id) : [];
+      if (!spForms.length) {
+        spSec.classList.add("hidden");
+      } else {
+        spSec.classList.remove("hidden");
+        if (spFeedback && !modalState.justSpecialMsg) spFeedback.textContent = "";
+        if (spFeedback && modalState.justSpecialMsg) {
+          spFeedback.textContent = modalState.justSpecialMsg;
+          modalState.justSpecialMsg = "";
+        }
+        var activeRemMs = activeSp ? getSpecialFormRemainingMs(poke.id) : null;
+        var hasTimedForm = spForms.some(function (f) { return f.kind === "mega" || f.kind === "primal"; });
+        if (spBadge) {
+          if (activeSpMeta) {
+            spBadge.textContent = (activeRemMs !== null ? ("⏳ " + formatRemainingTimeShort(activeRemMs) + " · ") : "") +
+              "PokéAPI #" + activeSpMeta.pokeapiId +
+              (activeSpMeta.baseStatTotal ? (" · 종족값 " + activeSpMeta.baseStatTotal) : "");
+          } else {
+            spBadge.textContent = (hasTimedForm ? "⏳ 3분 시간제한 · " : "") + "PokéAPI 특수 폼 " + spForms.length + "종";
+          }
+        }
+        var spHtml = "";
+        for (var si = 0; si < spForms.length; si++) {
+          var sf = spForms[si];
+          var isAct = activeSp && activeSp.key === sf.key;
+          var icon = sf.kind === "primal" ? "🌋" : sf.kind === "fusion" ? "🧬" : sf.kind === "ultra_burst" ? "✨" : "🌈";
+          var isTimedSf = (sf.kind === "mega" || sf.kind === "primal");
+          var partnerNote = "";
+          if (sf.partnerId && POKEMON_BY_ID[sf.partnerId]) {
+            var pObj = POKEMON_BY_ID[sf.partnerId];
+            var hasPartner = getOwnedCount(sf.partnerId) >= 1;
+            partnerNote = " + " + pObj.name + (hasPartner ? " (보유 ✓)" : " (미보유·체험 가능)");
+          }
+          var timerNote = isAct
+            ? (activeRemMs !== null ? ('<span class="sp-rem-time"> · ⏳ ' + formatRemainingTimeShort(activeRemMs) + "</span>") : " ✓ 활성")
+            : (isTimedSf ? " · ⏳ 3분" : "");
+          spHtml +=
+            '<button type="button" class="special-evo-btn kind-' + sf.kind + (isAct ? " is-active" : "") + '" data-spkey="' + sf.key + '">' +
+            icon + " " + sf.name + " · " + sf.item + " (" + sf.ability + ")" + partnerNote + timerNote +
+            "</button>";
+        }
+        if (activeSp) {
+          spHtml += '<button type="button" class="special-evo-btn kind-revert" data-spkey="__REVERT__">↩️ 원래 모습(' + poke.name + ')으로 돌아가기</button>';
+        }
+        spActions.innerHTML = spHtml;
+
+        var spBtns = spActions.querySelectorAll(".special-evo-btn");
+        for (var sb = 0; sb < spBtns.length; sb++) {
+          spBtns[sb].addEventListener("click", function () {
+            var skey = this.getAttribute("data-spkey");
+            ensureSpecialFormsState();
+            if (skey === "__REVERT__") {
+              deactivateSpecialForm(poke.id);
+              modalState.justSpecialMsg = "↩️ 원래 모습(" + poke.name + ")으로 되돌아왔어요!";
+              if (window.SoundFX && window.SoundFX.click) window.SoundFX.click();
+            } else {
+              var targetForm = window.getSpecialFormByKey(skey);
+              if (!targetForm) return;
+              activateSpecialForm(poke.id, targetForm);
+              var tDurMs = typeof window.getSpecialFormDurationMs === "function" ? window.getSpecialFormDurationMs(targetForm) : null;
+              modalState.justSpecialMsg = tDurMs
+                ? ("✨ '" + targetForm.name + "'(#" + targetForm.pokeapiId + ")으로 각성했어요! (⏳ 3분 후 원래 모습으로 복귀)")
+                : ("✨ PokéAPI 폼 '" + targetForm.name + "'(#" + targetForm.pokeapiId + ")으로 각성했어요!");
+              if (window.SoundFX && window.SoundFX.evolveFanfare) window.SoundFX.evolveFanfare();
+              if (typeof window.fetchSpecialFormFromPokeApi === "function") {
+                window.fetchSpecialFormFromPokeApi(targetForm.key, function () {
+                  if (modalState.pokemon && modalState.pokemon.id === poke.id) {
+                    updateDexModalContent();
+                  }
+                });
+              }
+            }
+            saveState();
+            updatePartnerButtonsUI();
+            if (state.screen === "battle" && battle.active) renderPartnerInBattle();
+            updateDexModalContent();
+          });
+        }
       }
     }
 
@@ -7341,6 +7784,8 @@
   function init() {
     applyAnimeThemeBackgrounds();
     loadState();
+    pruneExpiredSpecialForms(true);
+    startSpecialFormCountdownLoop();
     ensureTodayRoutine();
     window.SoundFX.setEnabled(state.soundOn);
     window.SoundFX.setVoiceMode(state.voiceMode);

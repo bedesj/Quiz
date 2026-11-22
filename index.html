@@ -260,6 +260,7 @@
                 </div>
                 <div class="status-plate-meta-row partner-meta-row">
                   <div id="battle-partner-types" class="region-type-row"></div>
+                  <button type="button" id="btn-battle-special-form" class="battle-special-btn hidden" title="메가진화·원시회귀·합체진화 전환">🌈 각성</button>
                   <span id="battle-routine-pill" class="routine-pill hidden">📅 루틴 0/14</span>
                   <span id="battle-boost-pill" class="boost-pill hidden">🍀 부스트</span>
                 </div>
@@ -409,6 +410,16 @@
           <div id="modal-evo-chain" class="dex-evo-chain"></div>
           <div id="modal-evo-actions" class="dex-evo-actions"></div>
           <div id="modal-evo-feedback" class="dex-evo-feedback"></div>
+        </div>
+
+        <!-- 메가진화 · 원시회귀 · 합체진화 (PokéAPI 폼 연동) -->
+        <div id="modal-special-evo-section" class="dex-evo-section special-evo-section hidden">
+          <div class="dex-evo-header">
+            <span>🌈 메가진화 · 🌋 원시회귀 · 🧬 합체진화</span>
+            <span id="modal-special-evo-badge" class="dex-evo-bag">PokéAPI 폼</span>
+          </div>
+          <div id="modal-special-evo-actions" class="special-evo-actions"></div>
+          <div id="modal-special-evo-feedback" class="dex-evo-feedback"></div>
         </div>
 
         <div class="modal-btn-row">
@@ -642,6 +653,7 @@
   <script src="data/offline_sprites_bundle.js"></script>
   <script src="data/pokemon.js"></script>
   <script src="data/evolutions.js"></script>
+  <script src="data/special_forms.js"></script>
   <script src="data/questions.js"></script>
   <script src="data/questions_stages.js"></script>
   <script src="data/questions_g1b.js"></script>

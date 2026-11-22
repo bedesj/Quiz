@@ -4158,3 +4158,82 @@ img.offline-shiny-tint:not(.is-wild-silhouette) {
 .question-text.has-picture-line::first-line { font-size: 2.1em; line-height: 1.25; }
 .choice-btn.picture-choice .choice-label { font-size: 1.9em; line-height: 1.1; letter-spacing: 1px; }
 .choice-label .move-choice-svg { width: 1.45em; height: 1.45em; display: block; }
+
+
+/* === 메가진화 · 원시회귀 · 합체진화 (PokéAPI 폼 연동) === */
+.special-evo-section {
+  background: linear-gradient(135deg, #fdf2f8 0%, #eff6ff 55%, #fefce8 100%);
+  border-color: #a855f7;
+}
+.special-evo-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+.special-evo-btn {
+  width: 100%;
+  border: 2px solid #1e293b;
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.12s ease, opacity 0.12s ease;
+  color: #ffffff;
+}
+.special-evo-btn:active {
+  transform: scale(0.98);
+}
+.special-evo-btn.kind-mega {
+  background: linear-gradient(90deg, #db2777 0%, #7c3aed 50%, #0284c7 100%);
+}
+.special-evo-btn.kind-primal {
+  background: linear-gradient(90deg, #dc2626 0%, #ea580c 55%, #2563eb 100%);
+}
+.special-evo-btn.kind-fusion {
+  background: linear-gradient(90deg, #0f172a 0%, #0284c7 55%, #4f46e5 100%);
+}
+.special-evo-btn.kind-ultra_burst {
+  background: linear-gradient(90deg, #d97706 0%, #f59e0b 50%, #7c3aed 100%);
+}
+.special-evo-btn.is-active {
+  box-shadow: 0 0 0 2px #facc15, 0 3px 0 #0f172a;
+}
+.special-evo-btn.kind-revert {
+  background: #f1f5f9;
+  color: #0f172a;
+  text-align: center;
+}
+.special-evo-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.battle-special-btn {
+  border: 1.5px solid #0f172a;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  background: linear-gradient(90deg, #ec4899 0%, #6366f1 100%);
+  color: #ffffff;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.battle-special-btn.is-active {
+  background: #0f172a;
+  color: #fde047;
+  border-color: #facc15;
+}
+.special-form-aura-mega {
+  filter: drop-shadow(0 0 10px rgba(236, 72, 153, 0.85));
+}
+.special-form-aura-primal {
+  filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.88));
+}
+.special-form-aura-fusion {
+  filter: drop-shadow(0 0 10px rgba(6, 182, 212, 0.88));
+}
