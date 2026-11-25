@@ -5153,7 +5153,7 @@
 
     var svgStage = document.getElementById("question-svg-stage");
     var qBoxEl = document.querySelector("#battle-quiz-panel .question-box");
-    svgStage.classList.toggle("auto-chart", !!autoChart);
+    svgStage.classList.toggle("auto-chart", !!autoChart || !!(quizObj && quizObj.svg && quizObj.svgLarge));   // 칸을 세어야 하는 그림은 크게
     if (quizObj && (quizObj.svg || autoChart)) {
       svgStage.innerHTML = autoChart ? autoChart.svg : quizObj.svg;
       svgStage.classList.remove("hidden");
