@@ -1892,8 +1892,8 @@
     imgEl.referrerPolicy = "no-referrer";
     imgEl.dataset.reqId = reqId;
     imgEl.dataset.pokeId = String(formObj.pokeapiId || basePoke.id);
-    imgEl.classList.remove("is-pixel-sprite", "is-over-shoulder-back", "offline-shiny-tint", "special-form-aura-mega", "special-form-aura-primal", "special-form-aura-fusion");
-    imgEl.classList.add(formObj.kind === "primal" ? "special-form-aura-primal" : (formObj.kind === "fusion" || formObj.kind === "ultra_burst") ? "special-form-aura-fusion" : "special-form-aura-mega");
+    imgEl.classList.remove("is-pixel-sprite", "is-over-shoulder-back", "offline-shiny-tint", "special-form-aura-mega", "special-form-aura-primal", "special-form-aura-fusion", "special-form-aura-crowned", "special-form-aura-form_change");
+    imgEl.classList.add(formObj.kind === "primal" ? "special-form-aura-primal" : formObj.kind === "crowned" ? "special-form-aura-crowned" : formObj.kind === "form_change" ? "special-form-aura-form_change" : (formObj.kind === "fusion" || formObj.kind === "ultra_burst") ? "special-form-aura-fusion" : "special-form-aura-mega");
 
     var isOfflineNow = (typeof navigator !== "undefined" && navigator.onLine === false);
     var cands = (!isOfflineNow && typeof window.buildSpecialFormSpriteCandidates === "function")
@@ -1907,7 +1907,7 @@
       } else {
         applyPokemonImage(imgEl, basePoke, !!useShiny);
       }
-      imgEl.classList.add(formObj.kind === "primal" ? "special-form-aura-primal" : (formObj.kind === "fusion" || formObj.kind === "ultra_burst") ? "special-form-aura-fusion" : "special-form-aura-mega");
+      imgEl.classList.add(formObj.kind === "primal" ? "special-form-aura-primal" : formObj.kind === "crowned" ? "special-form-aura-crowned" : formObj.kind === "form_change" ? "special-form-aura-form_change" : (formObj.kind === "fusion" || formObj.kind === "ultra_burst") ? "special-form-aura-fusion" : "special-form-aura-mega");
     }
 
     function tryIdx(idx) {
@@ -2189,7 +2189,7 @@
       if (sp) {
         applySpecialFormImage(pImgEl, partner, sp, !!state.partnerShiny, true);
       } else {
-        pImgEl.classList.remove("special-form-aura-mega", "special-form-aura-primal", "special-form-aura-fusion");
+        pImgEl.classList.remove("special-form-aura-mega", "special-form-aura-primal", "special-form-aura-fusion", "special-form-aura-crowned", "special-form-aura-form_change");
         applyPartnerBackImage(pImgEl, partner, !!state.partnerShiny);
       }
     }
@@ -2212,7 +2212,11 @@
             ? "🌋 원시회귀 (3분)"
             : f0.kind === "fusion"
               ? "🧬 합체진화"
-              : "🌈 메가진화 (3분)";
+              : f0.kind === "crowned"
+                ? (f0.key === "zacian-crowned" ? "⚔️ 검의 왕" : "🛡️ 방패의 왕")
+                : f0.kind === "form_change"
+                  ? "🔄 폼 체인지"
+                  : "🌈 메가진화 (3분)";
         }
         spBtn.onclick = toggleBattlePartnerSpecialForm;
       }
@@ -6219,7 +6223,7 @@
       if (activeSp) {
         applySpecialFormImage(img, poke, activeSp, showShiny, false);
       } else {
-        img.classList.remove("special-form-aura-mega", "special-form-aura-primal", "special-form-aura-fusion");
+        img.classList.remove("special-form-aura-mega", "special-form-aura-primal", "special-form-aura-fusion", "special-form-aura-crowned", "special-form-aura-form_change");
         applyPokemonImage(img, poke, showShiny);
       }
     }
@@ -6386,7 +6390,7 @@
         for (var si = 0; si < spForms.length; si++) {
           var sf = spForms[si];
           var isAct = activeSp && activeSp.key === sf.key;
-          var icon = sf.kind === "primal" ? "🌋" : sf.kind === "fusion" ? "🧬" : sf.kind === "ultra_burst" ? "✨" : "🌈";
+          var icon = sf.kind === "primal" ? "🌋" : sf.kind === "fusion" ? "🧬" : sf.kind === "ultra_burst" ? "✨" : sf.kind === "crowned" ? (sf.key === "zacian-crowned" ? "⚔️" : "🛡️") : sf.kind === "form_change" ? "🔄" : "🌈";
           var isTimedSf = (sf.kind === "mega" || sf.kind === "primal");
           var partnerNote = "";
           if (sf.partnerId && POKEMON_BY_ID[sf.partnerId]) {
@@ -7846,6 +7850,7 @@
     attachHorizontalDragSlider(document.querySelector(".pokedex-toolbar .filter-tabs"));
     initPwaSupport();
     initOfflineSpriteSystem();
+    updatePartnerButtonsUI();   // 저장된 파트너 이름을 시작 화면 버튼에 바로 보여 준다
     (function initPartnerEvents() {
       var btnTitleP = document.getElementById("btn-open-partner-title");
       if (btnTitleP) btnTitleP.addEventListener("click", openPartnerSelectModal);

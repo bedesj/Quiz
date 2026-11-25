@@ -74,7 +74,45 @@
     { key: "necrozma-dawn",    kind: "fusion", baseId: 800, partnerId: 792, pokeapiId: 10156, slug: "necrozma-dawn", name: "네크로즈마(새벽의날개)", types: ["에스퍼", "고스트"], item: "네크로플러스루나", ability: "프리즘아머", canUltraBurst: true },
     { key: "necrozma-ultra",   kind: "ultra_burst", baseId: 800, pokeapiId: 10157, slug: "necrozma-ultra", name: "울트라네크로즈마",     types: ["에스퍼", "드래곤"], item: "울트라네크로Z",  ability: "브레인포스" },
     { key: "calyrex-ice",      kind: "fusion", baseId: 898, partnerId: 896, pokeapiId: 10193, slug: "calyrex-ice",   name: "버드렉스(백마탄모습)", types: ["에스퍼", "얼음"], item: "유대의고삐",     ability: "인마일체(백의울음)" },
-    { key: "calyrex-shadow",   kind: "fusion", baseId: 898, partnerId: 897, pokeapiId: 10194, slug: "calyrex-shadow",name: "버드렉스(흑마탄모습)", types: ["에스퍼", "고스트"], item: "유대의고삐",   ability: "인마일체(흑의울음)" }
+    { key: "calyrex-shadow",   kind: "fusion", baseId: 898, partnerId: 897, pokeapiId: 10194, slug: "calyrex-shadow",name: "버드렉스(흑마탄모습)", types: ["에스퍼", "고스트"], item: "유대의고삐",   ability: "인마일체(흑의울음)" },
+
+    // ==================== 4. 폼 체인지 (검의 왕 · 방패의 왕) ====================
+    { key: "zacian-crowned",    kind: "crowned", baseId: 888, pokeapiId: 10188, slug: "zacian-crowned",    name: "자시안(검의 왕)",     types: ["페어리", "강철"], item: "녹슨검",   ability: "불요의검" },
+    { key: "zamazenta-crowned", kind: "crowned", baseId: 889, pokeapiId: 10189, slug: "zamazenta-crowned", name: "자마젠타(방패의 왕)", types: ["격투", "강철"],   item: "녹슨방패", ability: "불굴의방패" },
+
+    // ==================== 5. 공식 폼 체인지 (Form Change) ====================
+    // 테오키스 (운석 폼 체인지)
+    { key: "deoxys-attack",           kind: "form_change", baseId: 386,  pokeapiId: 10001, slug: "deoxys-attack",           name: "테오키스(어택폼)",         types: ["에스퍼"],         item: "운석(공격)",     ability: "프레셔" },
+    { key: "deoxys-defense",          kind: "form_change", baseId: 386,  pokeapiId: 10002, slug: "deoxys-defense",          name: "테오키스(디펜스폼)",       types: ["에스퍼"],         item: "운석(방어)",     ability: "프레셔" },
+    { key: "deoxys-speed",            kind: "form_change", baseId: 386,  pokeapiId: 10003, slug: "deoxys-speed",            name: "테오키스(스피드폼)",       types: ["에스퍼"],         item: "운석(속도)",     ability: "프레셔" },
+    // 로토무 (가전제품 폼 체인지)
+    { key: "rotom-heat",              kind: "form_change", baseId: 479,  pokeapiId: 10008, slug: "rotom-heat",              name: "히트로토무",               types: ["전기", "불꽃"],   item: "전자레인지",     ability: "부유" },
+    { key: "rotom-wash",              kind: "form_change", baseId: 479,  pokeapiId: 10009, slug: "rotom-wash",              name: "워시로토무",               types: ["전기", "물"],     item: "세탁기",         ability: "부유" },
+    { key: "rotom-frost",             kind: "form_change", baseId: 479,  pokeapiId: 10010, slug: "rotom-frost",             name: "프로스트로토무",           types: ["전기", "얼음"],   item: "냉장고",         ability: "부유" },
+    { key: "rotom-fan",               kind: "form_change", baseId: 479,  pokeapiId: 10011, slug: "rotom-fan",               name: "스핀로토무",               types: ["전기", "비행"],   item: "선풍기",         ability: "부유" },
+    { key: "rotom-mow",               kind: "form_change", baseId: 479,  pokeapiId: 10012, slug: "rotom-mow",               name: "커트로토무",               types: ["전기", "풀"],     item: "잔디깎이",       ability: "부유" },
+    // 신오 전설 오리진폼
+    { key: "dialga-origin",           kind: "form_change", baseId: 483,  pokeapiId: 10245, slug: "dialga-origin",           name: "디아루가(오리진폼)",       types: ["강철", "드래곤"], item: "큰금강옥",       ability: "프레셔" },
+    { key: "palkia-origin",           kind: "form_change", baseId: 484,  pokeapiId: 10246, slug: "palkia-origin",           name: "펄기아(오리진폼)",         types: ["물", "드래곤"],   item: "큰백옥",         ability: "프레셔" },
+    { key: "giratina-origin",         kind: "form_change", baseId: 487,  pokeapiId: 10007, slug: "giratina-origin",         name: "기라티나(오리진폼)",       types: ["고스트", "드래곤"], item: "백금옥",       ability: "부유" },
+    // 쉐이미
+    { key: "shaymin-sky",             kind: "form_change", baseId: 492,  pokeapiId: 10006, slug: "shaymin-sky",             name: "쉐이미(스카이폼)",         types: ["풀", "비행"],     item: "그라시데아의꽃", ability: "하늘의은총" },
+    // 영물폼 (비추는거울)
+    { key: "tornadus-therian",        kind: "form_change", baseId: 641,  pokeapiId: 10019, slug: "tornadus-therian",        name: "토네로스(영물폼)",         types: ["비행"],           item: "비추는거울",     ability: "재생력" },
+    { key: "thundurus-therian",       kind: "form_change", baseId: 642,  pokeapiId: 10020, slug: "thundurus-therian",       name: "볼트로스(영물폼)",         types: ["전기", "비행"],   item: "비추는거울",     ability: "축전" },
+    { key: "landorus-therian",        kind: "form_change", baseId: 645,  pokeapiId: 10021, slug: "landorus-therian",        name: "랜드로스(영물폼)",         types: ["땅", "비행"],     item: "비추는거울",     ability: "위협" },
+    { key: "enamorus-therian",        kind: "form_change", baseId: 905,  pokeapiId: 10249, slug: "enamorus-therian",        name: "러브로스(영물폼)",         types: ["페어리", "비행"], item: "비추는거울",     ability: "방진" },
+    // 킬가르도 · 후파 · 돌핀맨
+    { key: "aegislash-blade",         kind: "form_change", baseId: 681,  pokeapiId: 10026, slug: "aegislash-blade",         name: "킬가르도(블레이드폼)",     types: ["강철", "고스트"], item: "배틀스위치",     ability: "배틀스위치" },
+    { key: "hoopa-unbound",           kind: "form_change", baseId: 720,  pokeapiId: 10086, slug: "hoopa-unbound",           name: "굴레를 벗어난 후파",       types: ["에스퍼", "악"],   item: "굴레의항아리",   ability: "매지션" },
+    { key: "palafin-hero",            kind: "form_change", baseId: 964,  pokeapiId: 10256, slug: "palafin-hero",            name: "돌핀맨(마이티폼)",         types: ["물"],             item: "마이티체인지",   ability: "마이티체인지" },
+    // 오거폰 (가면 폼 체인지)
+    { key: "ogerpon-wellspring-mask", kind: "form_change", baseId: 1017, pokeapiId: 10273, slug: "ogerpon-wellspring-mask", name: "오거폰(우물의 가면)",      types: ["풀", "물"],       item: "우물의가면",     ability: "저수" },
+    { key: "ogerpon-hearthflame-mask",kind: "form_change", baseId: 1017, pokeapiId: 10274, slug: "ogerpon-hearthflame-mask",name: "오거폰(화덕의 가면)",      types: ["풀", "불꽃"],     item: "화덕의가면",     ability: "틀깨기" },
+    { key: "ogerpon-cornerstone-mask",kind: "form_change", baseId: 1017, pokeapiId: 10275, slug: "ogerpon-cornerstone-mask",name: "오거폰(주춧돌의 가면)",    types: ["풀", "바위"],     item: "주춧돌의가면",   ability: "옹골참" },
+    // 테라파고스 (테라스탈 · 스텔라 폼)
+    { key: "terapagos-terastal",      kind: "form_change", baseId: 1024, pokeapiId: 10276, slug: "terapagos-terastal",      name: "테라파고스(테라스탈폼)",   types: ["노말"],           item: "테라셸",         ability: "테라셸" },
+    { key: "terapagos-stellar",       kind: "form_change", baseId: 1024, pokeapiId: 10277, slug: "terapagos-stellar",       name: "테라파고스(스텔라폼)",     types: ["노말"],           item: "테라스탈",       ability: "제로포밍" }
   ];
 
   var BY_KEY = {};
@@ -237,7 +275,9 @@
     mega: 180,
     primal: 180,
     fusion: null,
-    ultra_burst: null
+    ultra_burst: null,
+    crowned: null,
+    form_change: null
   };
 
   function resolveFormObj(formOrKey) {
